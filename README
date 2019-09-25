@@ -1,0 +1,41 @@
+OpenGL forward renderer.
+
+Tested with Zig 0.4.0+93367ada
+
+-- Modules --
+
+WindowGraphicsInput: Abstraction over window creation (GLFW 3), user input (GLFW 3), and the graphics API (OpenGL 3.3, GLAD)
+	Depends on: GLFW, GLAD, stb_image
+Mathematics: Matrix and Vector types
+ModelFiles: Loading of models and animations from the custom file formats
+RTRenderEngine: Real-time rendering of scenes
+	Depends on: WindowGraphicsInput, Mathematics, ModelFiles
+Compress: Custom compressed file format
+	Depends on: ZSTD
+Assets: Abstraction ovet the loading of assets such as models, animations, textures, etc.
+	Depends on: Compress
+Scene: Scene files
+	Depends on: Assets, RTRenderEngine
+RGB10A2: 10-bits-per-channel texture support
+
+
+-- Compile Instructions (Windows) --
+
+1. Run compile_deps.bat
+	* Modify the file if needed e.g. to change the visual studio version
+2. If compiling GLFW, open deps\glfw\GLFW.sln and build the GLFW project in Release x64. 
+3. If compiling stb_image, open deps\stb_image\stb_image.vcxproj and compile in Release x64.
+4. If compiling ZSTD, open deps\zstd\build\VS2010\zstd.sln and compile libzstd in Release x64.
+5. Run compile_and_run.bat
+
+Output is in zig-cache/bin. The batch script ^ will run the example program automatically.
+
+-- Compile Instructions (Linux) --
+
+1. Run compile_deps.sh (might need to run sudo chmod +x ./compile_deps.sh)
+	* Change 'make -j3' to 'make -j4' etc. wherever it appears in the script if your computer has more than 2 CPU cores.
+2. Run 'zig build'
+
+Output is in zig-cache/bin.
+
+Demo programs must be run from the root directory of the project.

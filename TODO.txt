@@ -1,0 +1,23 @@
+(These are in no particular order)
+
+condition variables on linux
+change animation files so matrices can be copied directly to OpenGL without std.mem.copy
+point light shadows
+Rework RTRenderEngine API
+proper scene editor
+reduce 'bumpiness' of shadows
+should model data include bitangents?
+can vertices be cached after doing bone transformation in the shadow vertex shader for reuse in the main render pass?
+debugging icons (layered over scene) for bones (position in 3d) and lights (position, angle, clipping planes)
+port to d3d11
+shadows for vertex lights?
+skeletal animation blending for switching between animations
+port to vulkan?
+compressed texture formats
+reference counting for shader instances, textures, mesh renderers, meshes, etc.
+custom shaders
+light probes
+light baking
+vertex animation (for human faces, etc.)
+front-to-back depth ordered rendering
+skyboxes
