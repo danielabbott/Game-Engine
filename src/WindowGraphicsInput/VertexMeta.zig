@@ -3,8 +3,11 @@ const assert = std.debug.assert;
 const buf = @import("Buffer.zig");
 const window = @import("Window.zig");
 const c = @import("c.zig").c;
+const ReferenceCounter = @import("../RefCount.zig").ReferenceCounter;
 
 pub const VertexMeta = struct {
+    ref_count: ReferenceCounter = ReferenceCounter{},
+
     pub const VertexInput = struct {
         // Input is ignored if componentCount == 0
         pub const DataType = enum {
@@ -197,6 +200,7 @@ pub const VertexMeta = struct {
             assert(false);
             return;
         }
+        self.ref_count.deinit();
         c.glDeleteVertexArrays(1, @ptrCast([*c]const c_uint, &self.id));
         self.id = 0;
     }

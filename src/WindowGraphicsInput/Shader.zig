@@ -6,6 +6,7 @@ const c = @import("c.zig").c;
 const expect = std.testing.expect;
 const loadFile = @import("../Files.zig").loadFile;
 const builtin = @import("builtin");
+const ReferenceCounter = @import("../RefCount.zig").ReferenceCounter;
 
 var bound_shader: u32 = 0;
 
@@ -20,6 +21,7 @@ pub const ShaderType = enum(u32) {
 };
 
 pub const ShaderObject = struct {
+
     id: u32,
     shaderType: ShaderType,
 
@@ -96,6 +98,8 @@ pub const ShaderObject = struct {
 };
 
 pub const ShaderProgram = struct {
+    ref_count: ReferenceCounter = ReferenceCounter{},
+
     id: u32,
 
     // Vertex attribute strings must be null terminated
@@ -204,6 +208,7 @@ pub const ShaderProgram = struct {
             assert(false);
             return;
         }
+        self.ref_count.deinit();
 
         c.glDeleteProgram(self.id);
     }

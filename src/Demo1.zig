@@ -99,13 +99,24 @@ pub fn main() !void {
     var assets_list = std.ArrayList(Asset).init(c_allocator);
     defer assets_list.deinit();
 
+    defer {
+        for(assets_list.toSlice()) |*a| {
+            if(a.state != Asset.AssetState.Freed) {
+                std.debug.warn("Asset {} not freed\n", a.file_path[0..a.file_path_len]);
+                if(a.data != null) {
+                    std.debug.warn("\t^ Data has not been freed either\n");
+                }
+            }
+        }
+    }
+
     try scenes.getAssets(scene_file, &assets_list);
 
     const num_scene_assets = assets_list.count();
 
     defer {
         for (assets_list.toSlice()) |*a| {
-            a.*.free(c_allocator);
+            a.*.free(true);
         }
     }
 
@@ -135,15 +146,10 @@ pub fn main() !void {
     settings.max_fragment_lights = 1;
     settings.max_vertex_lights = 0;
 
-    var root_object: render.Object = render.Object{
-        .name = "rootxxxxxxxxxxxx",
-        .name_length = 4,
-    };
+    var root_object: render.Object = render.Object.init("root");
+    defer root_object.delete(true);
 
-    var camera: render.Object = render.Object{
-        .name = "cameraxxxxxxxxxx",
-        .name_length = 6,
-    };
+    var camera: render.Object = render.Object.init("camera");
     try root_object.addChild(&camera);
     camera.is_camera = true;
 
@@ -177,7 +183,7 @@ pub fn main() !void {
     // Free assets (data has been uploaded the GPU)
     // This frees the cpu-side copy of model data and textures which is now stored on the GPU
     for(assets_list.toSlice()) |*a| {
-        a.freeData(c_allocator);
+        a.freeData();
     }
 
     const windmill_blades = scene.findChild("Windmill_Blades");

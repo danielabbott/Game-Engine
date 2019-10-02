@@ -5,9 +5,12 @@ const ImageType = img.ImageType;
 const Texture2D = img.Texture2D;
 const window = @import("Window.zig");
 const c = @import("c.zig").c;
+const ReferenceCounter = @import("../RefCount.zig").ReferenceCounter;
 
 // Framebuffer with 2D backing texture
 pub const FrameBuffer = struct {
+    ref_count: ReferenceCounter = ReferenceCounter{},
+
     id: u32,
     texture: ?Texture2D,
     depth_texture: ?Texture2D,
@@ -138,6 +141,7 @@ pub const FrameBuffer = struct {
             assert(false);
             return;
         }
+        self.ref_count.deinit();
 
         if (self.texture != null) {
             self.texture.?.free();

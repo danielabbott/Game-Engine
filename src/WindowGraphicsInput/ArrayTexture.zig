@@ -8,6 +8,7 @@ const ArrayList = std.ArrayList;
 const c_allocator = std.heap.c_allocator;
 const c = @import("c.zig").c;
 const expect = std.testing.expect;
+const ReferenceCounter = @import("../RefCount.zig").ReferenceCounter;
 
 fn image_data_size(w: usize, h: usize, layers: u32, imgType: img.ImageType) usize {
     var expectedDataSize: usize = 0;
@@ -24,6 +25,8 @@ fn image_data_size(w: usize, h: usize, layers: u32, imgType: img.ImageType) usiz
 }
 
 pub const Texture2DArray = struct {
+    ref_count: ReferenceCounter = ReferenceCounter{},
+
     id: u32,
     width: u32,
     height: u32,
@@ -174,6 +177,7 @@ pub const Texture2DArray = struct {
             assert(false);
             return;
         }
+        self.ref_count.deinit();
 
         if (self.frameBufferIds.count() > 0) {
             c.glDeleteFramebuffers(@intCast(c_int, self.frameBufferIds.len), @ptrCast([*c]const c_uint, self.frameBufferIds.toSlice().ptr));

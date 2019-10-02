@@ -7,7 +7,7 @@ const assets = @import("../Assets/Assets.zig");
 const Asset = assets.Asset;
 const wgi = @import("../WindowGraphicsInput/WindowGraphicsInput.zig");
 const image = wgi.image;
-const Texture2D = wgi.Texture2D;
+const Texture2D = render.Texture2D;
 
 pub fn getAmbient(file_data: []align(4) const u8, ambient: *[3]f32) void {
     const scene_file_f32 = @bytesToSlice(f32, file_data);
@@ -89,7 +89,6 @@ pub fn loadSceneFromFile(file_data: [] align(4) const u8, assets_list: []Asset, 
     const num_meshes = scene_file_u32[offset];
     offset += 1;
 
-    // TODO keep track of which meshes are used so a warning can be given for unused meshes and the unused meshes can be deleted
     var meshes = std.ArrayList(?*render.Mesh).init(allocator);
     defer meshes.deinit();
     try meshes.resize(num_meshes);
@@ -100,12 +99,18 @@ pub fn loadSceneFromFile(file_data: [] align(4) const u8, assets_list: []Asset, 
         const modifiable = scene_file_u32[offset+1] != 0;
         offset += 2;
 
-        if(@intCast(usize, asset_index) < assets_list.len and assets_list[asset_index].asset_type == Asset.AssetType.Model) {
+        const asset = &assets_list[asset_index];
+
+        if(@intCast(usize, asset_index) < assets_list.len and asset.asset_type == Asset.AssetType.Model) {
             var mesh = try allocator.create(render.Mesh);
             errdefer allocator.destroy(mesh);
 
-            mesh.* = try render.Mesh.init(&assets_list[asset_index].model.?, modifiable, allocator);
-            errdefer mesh.*.free();
+            mesh.* = try render.Mesh.initFromAsset(asset, modifiable);
+            asset.ref_count.inc();
+            errdefer { 
+                mesh.*.free(); 
+                asset.ref_count.dec();
+            }
 
             meshes.toSlice()[i] = mesh;
         }
@@ -119,7 +124,6 @@ pub fn loadSceneFromFile(file_data: [] align(4) const u8, assets_list: []Asset, 
     const num_textures = scene_file_u32[offset];
     offset += 1;
 
-    // TODO keep track of which textures are used so a warning can be given for unused textures and the unused textures can be deleted
     var textures = std.ArrayList(?*Texture2D).init(allocator);
     defer textures.deinit();
     try textures.resize(num_textures);
@@ -132,23 +136,23 @@ pub fn loadSceneFromFile(file_data: [] align(4) const u8, assets_list: []Asset, 
         const min_filter = @intToEnum(image.MinFilter, @intCast(i32, std.math.min(5, scene_file_u32[offset+3])));
         offset += 4;
 
+        const asset = &assets_list[asset_index];
+
         if(@intCast(usize, asset_index) < assets_list.len and 
-            (assets_list[asset_index].asset_type == Asset.AssetType.Texture or
-                assets_list[asset_index].asset_type == Asset.AssetType.RGB10A2Texture)) {
+            (asset.asset_type == Asset.AssetType.Texture or
+                asset.asset_type == Asset.AssetType.RGB10A2Texture)) {
             
-            var texture = try allocator.create(image.Texture2D);
+            var texture = try allocator.create(Texture2D);
             errdefer allocator.destroy(texture);
 
-            texture.* = try image.Texture2D.init(smooth_when_magnified, min_filter);
-            errdefer texture.*.free();
+            texture.* = try Texture2D.loadFromAsset(asset);
+            errdefer texture.*.free(); 
 
-            const a = &assets_list[asset_index];
-
-            if(assets_list[asset_index].asset_type == Asset.AssetType.RGB10A2Texture) {
-                try texture.upload(a.texture_width.?, a.texture_height.?, a.texture_type.?, a.data.?);
+            if(asset.asset_type == Asset.AssetType.RGB10A2Texture) {
+                try texture.texture.upload(asset.texture_width.?, asset.texture_height.?, asset.texture_type.?, asset.rgb10a2_data.?);
             }
             else {
-                try texture.upload(a.texture_width.?, a.texture_height.?, a.texture_type.?, a.rgb10a2_data.?);
+                try texture.texture.upload(asset.texture_width.?, asset.texture_height.?, asset.texture_type.?, asset.data.?);
             }
 
             textures.toSlice()[i] = texture;
@@ -198,7 +202,12 @@ pub fn loadSceneFromFile(file_data: [] align(4) const u8, assets_list: []Asset, 
             offset += 1;
 
             if(mesh_index < meshes.count() and meshes.toSlice()[mesh_index] != null) {
-                o.mesh_renderer = try render.MeshRenderer.init(meshes.toSlice()[mesh_index].?, allocator);
+                // TODO scene file should have list of mesh renderers
+                // TODO return resource lists to caller
+                var mesh_renderer = try allocator.create(render.MeshRenderer);
+                errdefer allocator.destroy(mesh_renderer);
+                mesh_renderer.* = try render.MeshRenderer.init(meshes.toSlice()[mesh_index].?, allocator);
+                o.setMeshRenderer(mesh_renderer);
 
                 // Materials
 
@@ -209,10 +218,10 @@ pub fn loadSceneFromFile(file_data: [] align(4) const u8, assets_list: []Asset, 
                     offset += 2;
 
                     if(tex < textures.count() and textures.toSlice()[tex] != null) {
-                        o.mesh_renderer.?.materials[j].texture = textures.toSlice()[tex].?;
+                        o.mesh_renderer.?.materials[j].setTexture(textures.toSlice()[tex].?);
                     }
                     if(norm < textures.count() and textures.toSlice()[norm] != null) {
-                        o.mesh_renderer.?.materials[j].normal_map = textures.toSlice()[norm].?;
+                        o.mesh_renderer.?.materials[j].setNormalMap(textures.toSlice()[norm].?);
                     }
 
                     o.mesh_renderer.?.materials[j].specular_size = scene_file_f32[offset+0];

@@ -5,6 +5,7 @@ const window = @import("Window.zig");
 const c = @import("c.zig").c;
 const files = @import("../Files.zig");
 const expect = std.testing.expect;
+const ReferenceCounter = @import("../RefCount.zig").ReferenceCounter;
 
 // Base internal formats
 pub const image_type_base_internal_formats: [9]u32 = [9]u32{
@@ -84,14 +85,7 @@ pub fn imageDataSize(w: usize, h: usize, imgType: ImageType) usize {
     return expectedDataSize;
 }
 
-pub fn createTexture(gl_type: c_uint, smooth_when_magnified: bool, min_filter: MinFilter) !c_uint {
-    var textureId: u32 = 0;
-    c.glGenTextures(1, @ptrCast([*c]c_uint, &textureId));
-
-    if (textureId == 0) {
-        return error.OpenGLError;
-    }
-
+pub fn setTextureFiltering(textureId: c_uint, gl_type: c_uint, smooth_when_magnified: bool, min_filter: MinFilter) void {
     c.glBindTexture(gl_type, textureId);
 
     if (smooth_when_magnified) {
@@ -109,11 +103,24 @@ pub fn createTexture(gl_type: c_uint, smooth_when_magnified: bool, min_filter: M
 
     c.glTexParameteri(gl_type, c.GL_TEXTURE_WRAP_S, c.GL_CLAMP_TO_EDGE);
     c.glTexParameteri(gl_type, c.GL_TEXTURE_WRAP_T, c.GL_CLAMP_TO_EDGE);
+}
+
+pub fn createTexture(gl_type: c_uint, smooth_when_magnified: bool, min_filter: MinFilter) !c_uint {
+    var textureId: u32 = 0;
+    c.glGenTextures(1, @ptrCast([*c]c_uint, &textureId));
+
+    if (textureId == 0) {
+        return error.OpenGLError;
+    }
+
+    setTextureFiltering(textureId, gl_type, smooth_when_magnified, min_filter);
 
     return textureId;
 }
 
 pub const Texture2D = struct {
+    ref_count: ReferenceCounter = ReferenceCounter{},
+
     width: u32,
     height: u32,
     imageType: ImageType,
@@ -134,6 +141,10 @@ pub const Texture2D = struct {
             .id = try createTexture(c.GL_TEXTURE_2D, smooth_when_magnified, min_filter),
             .min_filter = min_filter,
         };
+    }
+
+    pub fn setFiltering(self: *Texture2D, smooth_when_magnified: bool, min_filter: MinFilter) !Texture2D {
+        setTextureFiltering(self.id, c.GL_TEXTURE_2D, smooth_when_magnified, min_filter);
     }
 
     // Needed if using shadow sampler types
@@ -218,12 +229,19 @@ pub const Texture2D = struct {
     }
 
     pub fn free(self: *Texture2D) void {
-        if (self.id == 0) {
+        if(self.id == 0) {
             assert(false);
             return;
         }
+        self.ref_count.deinit();
         c.glDeleteTextures(1, @ptrCast([*c]c_uint, &self.id));
         self.id = 0;
+    }
+
+    pub fn freeIfUnused(self: *Texture2D) void {
+        if(self.ref_count.n == 0) {
+            self.free();
+        }
     }
 
     pub fn loadFromFile(file_path: []const u8, allocator: *std.mem.Allocator, smooth_when_magnified: bool, min_filter: MinFilter, components: u32) !Texture2D {

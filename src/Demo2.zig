@@ -8,7 +8,9 @@ const Constants = wgi.Constants;
 const vertexarray = wgi.vertexarray;
 const buffer = wgi.buffer;
 const render = @import("RTRenderEngine/RTRenderEngine.zig");
-const ModelData = @import("ModelFiles/ModelFiles.zig").ModelData;
+const Texture2D = render.Texture2D;
+const ModelData = render.ModelData;
+const Animation = render.Animation;
 const c_allocator = std.heap.c_allocator;
 const maths = @import("Mathematics/Mathematics.zig");
 const Matrix = maths.Matrix;
@@ -56,12 +58,6 @@ pub fn main() !void {
     var minotaur_texture2_asset = &assets_list.toSlice()[3];
     var minotaur_normal_map2_asset = &assets_list.toSlice()[4];
     var minotaur_animation_asset = &assets_list.toSlice()[5];
-
-    defer {
-        for (assets_list.toSlice()) |*a| {
-            a.*.free(c_allocator);
-        }
-    }
     
     minotaur_model_asset.* = try Asset.init("minotaur.model.compressed");
     minotaur_texture_asset.* = try Asset.init("minotaur.png");
@@ -73,6 +69,17 @@ pub fn main() !void {
     minotaur_normal_map2_asset.* = try Asset.init("minotaur_normal2.png");
     minotaur_normal_map2_asset.texture_channels = 4;
     minotaur_animation_asset.* = try Asset.init("minotaur_idle.anim.compressed");
+
+    defer {
+        for(assets_list.toSlice()) |*a| {
+            if(a.state != Asset.AssetState.Freed) {
+                std.debug.warn("Asset {} not freed\n", a.file_path[0..a.file_path_len]);
+                if(a.data != null) {
+                    std.debug.warn("\t^ Data has not been freed either\n");
+                }
+            }
+        }
+    }
 
     try assets.startAssetLoader1(assets_list.toSlice(), c_allocator);
     defer assets.assetLoaderCleanup();
@@ -102,23 +109,17 @@ pub fn main() !void {
     settings.enable_spot_lights = false;
     settings.enable_shadows = false;
 
-    var root_object: render.Object = render.Object{
-        .name = "rootxxxxxxxxxxxx",
-        .name_length = 4,
-    };
+    var root_object: render.Object = render.Object.init("root");
 
-    var camera: render.Object = render.Object{
-        .name = "cameraxxxxxxxxxx",
-        .name_length = 6,
-    };
+    // Deletes all objects and frees all resources
+    defer root_object.delete(true);
+
+    var camera: render.Object = render.Object.init("camera");
     try root_object.addChild(&camera);
     camera.is_camera = true;
     camera.transform = Matrix(f32, 4).translate(Vector(f32, 3).init([3]f32{0, 1, 5}));
 
-    var light: render.Object = render.Object{
-        .name = "lightxxxxxxxxxxx",
-        .name_length = 4,
-    };
+    var light: render.Object = render.Object.init("light");
     light.light = render.Light{
         .light_type = render.Light.LightType.Point,
         .colour = [3]f32{ 100.0, 100.0, 100.0 },
@@ -144,41 +145,36 @@ pub fn main() !void {
         }
     }
 
-    var minotaur_object = render.Object{
-        .name = "minotaurxxxxxxxx",
-        .name_length = 8,
-    };
+    var minotaur_object = render.Object.init("minotaur");
 
-    var minotaur_mesh: render.Mesh = try render.Mesh.init(&minotaur_model_asset.model.?, false, c_allocator);
-    defer minotaur_mesh.free();
+    var minotaur_mesh: render.Mesh = try render.Mesh.initFromAsset(minotaur_model_asset, false);
 
-    minotaur_object.mesh_renderer = try render.MeshRenderer.init(&minotaur_mesh, c_allocator);
+    var t = try Texture2D.loadFromAsset(minotaur_texture_asset);
+    var t2 = try Texture2D.loadFromAsset(minotaur_normal_map_asset);
+    var t3 = try Texture2D.loadFromAsset(minotaur_texture2_asset);
+    var t4 = try Texture2D.loadFromAsset(minotaur_normal_map2_asset);
 
-    var t = try wgi.Texture2D.initAndUpload(minotaur_texture_asset.texture_width.?, minotaur_texture_asset.texture_height.?, minotaur_texture_asset.texture_type.?, minotaur_texture_asset.data.?, true, wgi.MinFilter.LinearMipMapNearest);
-    defer t.free();
-    var t2 = try wgi.Texture2D.initAndUpload(minotaur_normal_map_asset.texture_width.?, minotaur_normal_map_asset.texture_height.?, minotaur_texture_asset.texture_type.?, minotaur_normal_map_asset.data.?, true, wgi.MinFilter.LinearMipMapNearest);
-    defer t2.free();
-    var t3 = try wgi.Texture2D.initAndUpload(minotaur_texture2_asset.texture_width.?, minotaur_texture2_asset.texture_height.?, minotaur_texture_asset.texture_type.?, minotaur_texture2_asset.data.?, true, wgi.MinFilter.LinearMipMapNearest);
-    defer t3.free();
-    var t4 = try wgi.Texture2D.initAndUpload(minotaur_normal_map2_asset.texture_width.?, minotaur_normal_map2_asset.texture_height.?, minotaur_texture_asset.texture_type.?, minotaur_normal_map2_asset.data.?, true, wgi.MinFilter.LinearMipMapNearest);
-    defer t4.free();
+    var minotaur_mesh_renderer = try render.MeshRenderer.init(&minotaur_mesh, c_allocator);
+    minotaur_object.setMeshRenderer(&minotaur_mesh_renderer);
 
     // Body
-    minotaur_object.mesh_renderer.?.materials[1].texture = &t;
-    minotaur_object.mesh_renderer.?.materials[1].normal_map = &t2;
+    minotaur_object.mesh_renderer.?.materials[1].setTexture(&t);
+    minotaur_object.mesh_renderer.?.materials[1].setNormalMap(&t2);
     minotaur_object.mesh_renderer.?.materials[1].specular_intensity = 10.0;
     // Clothes
-    minotaur_object.mesh_renderer.?.materials[0].texture = &t3;
-    minotaur_object.mesh_renderer.?.materials[0].normal_map = &t4;
+    minotaur_object.mesh_renderer.?.materials[0].setTexture(&t3);
+    minotaur_object.mesh_renderer.?.materials[0].setNormalMap(&t4);
     minotaur_object.mesh_renderer.?.materials[0].specular_intensity = 0.0;
 
-    minotaur_object.mesh_renderer.?.playAnimation(&minotaur_animation_asset.animation.?);
+    var animation_object = Animation.init();
+    try animation_object.playAnimationFromAsset(minotaur_animation_asset);
+    minotaur_object.mesh_renderer.?.setAnimationObject(&animation_object);
 
     try root_object.addChild(&minotaur_object);
 
     // Free assets (data has been uploaded the GPU)
     for(assets_list.toSlice()) |*a| {
-        a.freeData(c_allocator);
+        a.freeData();
     }
 
     // -

@@ -6,6 +6,7 @@ const ModelData = @import("../ModelFiles/ModelFiles.zig").ModelData;
 const AnimationData = @import("../ModelFiles/AnimationFiles.zig").AnimationData;
 const wgi = @import("../WindowGraphicsInput/WindowGraphicsInput.zig");
 const ConditionVariable = @import("../ConditionVariable.zig").ConditionVariable;
+const ReferenceCounter = @import("../RefCount.zig").ReferenceCounter;
 
 var assets_directory: ?[]const u8 = null;
 
@@ -19,6 +20,13 @@ pub fn setAssetsDirectory(dir: []const u8) void {
 var path: [256]u8 = undefined;
 
 pub const Asset = struct {
+    ref_count: ReferenceCounter = ReferenceCounter{},
+
+    // Reference counting is different for assets.
+    // ref_count2 should be incremented at the same time as ref_count.
+    // If the model data / texture data / etc. is no longer needed in system memory but the meta data
+    // in the asset struct is still being used then ref_count2 should be decremented and fn freeData called
+    ref_count2: ReferenceCounter = ReferenceCounter{},
 
     pub const AssetType = enum {
         Model,
@@ -50,6 +58,7 @@ pub const Asset = struct {
     compressed: bool, // if true then this is a *.compressed file
     state: AssetState,
     data: ?[]align(4) u8,
+    allocator: ?*std.mem.Allocator = null,
 
     // -- Configuration variables --
 
@@ -141,42 +150,43 @@ pub const Asset = struct {
         return a;
     }
 
-    pub fn load(self: *Asset, allocator: *std.mem.Allocator) !void {
+    pub fn load(self: *Asset, allocator_: *std.mem.Allocator) !void {
         if (self.state != AssetState.NotLoaded) {
             return error.InvalidState;
         }
+        self.allocator = allocator_;
 
         if(assets_directory == null) {
-            self.data = try loadFile(self.file_path[0..self.file_path_len], allocator);
+            self.data = try loadFile(self.file_path[0..self.file_path_len], allocator_);
         }
         else {
             const n = std.fmt.bufPrint(path[0..], "{}{}", assets_directory, self.file_path[0..self.file_path_len]) catch unreachable;
-            self.data = try loadFile(n, allocator);
+            self.data = try loadFile(n, allocator_);
         }
         self.state = AssetState.Loaded;
     }
 
     // Use same allocator as was used for load()
-    pub fn decompress(self: *Asset, allocator: *std.mem.Allocator) !void {
-        if (self.state != AssetState.Loaded or self.data == null) {
+    pub fn decompress(self: *Asset) !void {
+        if (self.state != AssetState.Loaded or self.data == null or self.allocator == null) {
             return error.InvalidState;
         }
 
         if (self.compressed) {
-            const newData = try compress.decompress(self.data.?, allocator);
-            allocator.free(self.data.?);
+            const newData = try compress.decompress(self.data.?, self.allocator.?);
+            self.allocator.?.free(self.data.?);
             self.data = newData;
         }
 
         if (self.asset_type == AssetType.Model) {
-            self.model = try ModelData.init(self.data.?, allocator);
+            self.model = try ModelData.init(self.data.?, self.allocator.?);
         }
         else if (self.asset_type == AssetType.Animation) {
             self.animation = try AnimationData.init(self.data.?);
         } else if (self.asset_type == AssetType.Texture) {
             var w: u32 = 0;
             var h: u32 = 0;
-            const newData = try wgi.image.decodeImage(self.data.?, &self.texture_channels, &w, &h, allocator);
+            const newData = try wgi.image.decodeImage(self.data.?, &self.texture_channels, &w, &h, self.allocator.?);
             self.texture_width = w;
             self.texture_height = h;
             wgi.image.freeDecodedImage(self.data.?);
@@ -226,23 +236,29 @@ pub const Asset = struct {
 
     // Keeps things such as model file metadata loaded but frees the memory that is typicaly stored in video memory
     // Don't call this if the mesh data is to be freed
-    pub fn freeData(self: *Asset, allocator: *std.mem.Allocator) void {
-        if (self.state == AssetState.NotLoaded or self.state == AssetState.Freed or self.data == null or asset_type_keep_data_on_cpu[@enumToInt(self.asset_type)]) {
+    pub fn freeData(self: *Asset) void {
+        if (self.state == AssetState.NotLoaded or self.state == AssetState.Freed or self.data == null
+                or asset_type_keep_data_on_cpu[@enumToInt(self.asset_type)] or self.allocator == null) {
             return;
         }
-        allocator.free(self.data.?);
+        self.ref_count2.deinit();
+        self.allocator.?.free(self.data.?);
         self.data = null;
     }
 
-    pub fn free(self: *Asset, allocator: *std.mem.Allocator) void {
+    pub fn free(self: *Asset, ignore_reference_counting: bool) void {
+        if(!ignore_reference_counting) {
+            self.ref_count.deinit();
+        }
+
         if (self.state == AssetState.Ready) {
             if (self.asset_type == AssetType.Model) {
-                self.model.?.free(allocator);
+                self.model.?.free(self.allocator.?);
             }
         }
 
         if(self.data != null) {
-            allocator.free(self.data.?);
+            self.allocator.?.free(self.data.?);
             self.data = null;
         }
         self.state = AssetState.Freed;
@@ -301,7 +317,7 @@ fn assetDecompressor(allocator: *std.mem.Allocator) void {
         }
         else {
             if(asset.?.data.*.state == Asset.AssetState.Loaded) {
-                asset.?.data.*.decompress(allocator) catch |e| {
+                asset.?.data.*.decompress() catch |e| {
                     std.debug.warn("Asset '{}' decompress error: {}\n", asset.?.data.file_path[0..asset.?.data.file_path_len], e);
                 };
             }

@@ -1,35 +1,52 @@
+// TODO: Put mesh renderer into different file
+
 const std = @import("std");
 const assert = std.debug.assert;
 const warn = std.debug.warn;
 const ModelData = @import("../ModelFiles/ModelFiles.zig").ModelData;
 const VertexAttributeType = ModelData.VertexAttributeType;
-const AnimationData = @import("../ModelFiles/AnimationFiles.zig").AnimationData;
 const Buffer = @import("../WindowGraphicsInput/WindowGraphicsInput.zig").Buffer;
 const VertexMeta = @import("../WindowGraphicsInput/WindowGraphicsInput.zig").VertexMeta;
 const ShaderInstance = @import("Shader.zig").ShaderInstance;
 const Matrix = @import("../Mathematics/Mathematics.zig").Matrix;
 const wgi = @import("../WindowGraphicsInput/WindowGraphicsInput.zig");
-const Texture2D = wgi.Texture2D;
+const Texture2D = @import("Texture2D.zig").Texture2D;
+const Animation = @import("Animation.zig").Animation;
 const rtrenderengine = @import("RTRenderEngine.zig");
 const getSettings = rtrenderengine.getSettings;
 const min = std.math.min;
+const ReferenceCounter = @import("../RefCount.zig").ReferenceCounter;
+const Asset = @import("../Assets/Assets.zig").Asset;
 
-var matrix_buffer: ?[]f32 = null;
-extern var this_frame_time: u64;
 
-pub fn allocateStaticData(allocator: *std.mem.Allocator) !void {
-    matrix_buffer = try allocator.alloc(f32, 128*4*4);
-}
 
 pub const Mesh = struct {
+    ref_count: ReferenceCounter = ReferenceCounter{},
+    asset: ?*Asset = null,
+
     vertex_data_buffer: Buffer,
     index_data_buffer: ?Buffer,
     modifiable: bool,
     model: *ModelData,
 
+    pub fn initFromAsset(asset: *Asset, modifiable: bool) !Mesh {
+        if(asset.asset_type != Asset.AssetType.Model) {
+            return error.InvalidAssetType;
+        }
+        if(asset.state != Asset.AssetState.Ready) {
+            return error.InvalidAssetState;
+        }
+
+        var m = try init(&asset.model.?, modifiable);
+        m.asset = asset;
+        asset.ref_count.inc();
+        return m;
+    }
+
     // model object must remain valid for as long as this mesh object is valid
     // model.data can be freed however. That data will not be used again.
-    pub fn init(model: *ModelData, modifiable: bool, allocator: *std.mem.Allocator) !Mesh {
+    // when_unused is caleld when the mesh is no longer being used by any mesh renderer
+    pub fn init(model: *ModelData, modifiable: bool) !Mesh {
         VertexMeta.unbind();
 
         var vbuf: Buffer = try Buffer.init();
@@ -47,7 +64,7 @@ pub const Mesh = struct {
             }
         }
 
-        return Mesh{
+        return Mesh {
             .vertex_data_buffer = vbuf,
             .index_data_buffer = ibuf,
             .modifiable = modifiable,
@@ -74,18 +91,39 @@ pub const Mesh = struct {
         try self.index_data_buffer.?.uploadRegion(Buffer.BufferType.IndexData, data, offset, true);
     }
 
-    // Does not delete the model
-    pub fn free(self: *Mesh) void {
+    fn free_(self: *Mesh) void {
+        self.ref_count.deinit();
         self.vertex_data_buffer.free();
         if (self.index_data_buffer != null) {
             self.index_data_buffer.?.free();
+        }
+    }
+
+    // Does not delete the model
+    pub fn free(self: *Mesh) void {
+        self.free_();
+        self.asset = null;
+    }
+
+    pub fn freeIfUnused(self: *Mesh) void {
+        if(self.asset != null and self.ref_count.n == 0) {
+            self.ref_count.deinit();
+            self.free_();
+
+            self.asset.?.ref_count.dec();
+            if(self.asset.?.ref_count.n == 0) {
+                self.asset.?.free(false);
+            }
+            self.asset = null;
         }
     }
 };
 
 
 pub const MeshRenderer = struct {
-    mesh: *Mesh,
+    ref_count: ReferenceCounter = ReferenceCounter{},
+
+    mesh: ?*Mesh,
     vao: VertexMeta,
     
     max_vertex_lights: u32 = 8,
@@ -109,8 +147,28 @@ pub const MeshRenderer = struct {
     enable_per_object_light: bool = true,
 
     pub const Material = struct {
+        // DO NOT SET THESE VARIABLES USE fn setTexture AND fn setNormalMap
         texture: ?*Texture2D = null,
         normal_map: ?*Texture2D = null,
+
+        pub fn setTexture(self: *Material, texture: ?*Texture2D) void {
+            ReferenceCounter.set(Texture2D, &self.texture, texture);
+        }
+
+        pub fn setNormalMap(self: *Material, normal_map: ?*Texture2D) void {
+            ReferenceCounter.set(Texture2D, &self.normal_map, normal_map);
+        }
+
+        pub fn freeTexturesIfUnused(self: *Material) void {
+            if(self.texture != null) {
+                self.texture.?.ref_count.dec();
+                self.texture.?.freeIfUnused();
+            }
+            if(self.normal_map != null) {
+                self.normal_map.?.ref_count.dec();
+                self.normal_map.?.freeIfUnused();
+            }
+        }
 
         colour_override: ?[3]f32 = null,
 
@@ -123,13 +181,12 @@ pub const MeshRenderer = struct {
     // Materials here map directly to the materials in the mesh's model file
     materials: [32]Material = [1]Material{Material{}} ** 32,
 
-
-    // internal variables
-
-    active_animation: ?*AnimationData = null,
-    animation_start_time: u64 = 0,
+    animation_object: ?*Animation = null,
 
     pub fn init(mesh: *Mesh, allocator: *std.mem.Allocator) !MeshRenderer {
+        mesh.ref_count.inc();
+        errdefer mesh.ref_count.dec();
+
         var inputs: []VertexMeta.VertexInput = try allocator.alloc(VertexMeta.VertexInput, mesh.model.attributes_count);
         defer allocator.free(inputs);
 
@@ -208,45 +265,6 @@ pub const MeshRenderer = struct {
         };
     }
 
-    fn setAnimationMatrices(self: *MeshRenderer, shader: *const ShaderInstance) void {
-        if(self.active_animation != null) {
-            const time_difference = this_frame_time - self.animation_start_time;
-            var frame_index = @intCast(u32, time_difference / (self.active_animation.?.frame_duration));
-            if(time_difference % self.active_animation.?.frame_duration >= time_difference/2) {
-                frame_index += 1;
-            }
-
-            frame_index = frame_index % self.active_animation.?.*.frame_count;
-
-            var bone_i: u32 = 0;
-            var bone_o: u32 = 0;
-            while(bone_i < self.mesh.model.bone_count) : (bone_i += 1) {
-                const name = self.mesh.model.getBoneName(&bone_o) catch break;
-                const animation_bone_index = self.active_animation.?.*.getBoneIndex(name) catch continue;
-                
-                // TODO optimise to avoid copy
-                // ^ have animation files store data for all bones even if not animated so data for each frame can be uploaded directly 
-                const animation_bone_matrix_offset = (frame_index * self.active_animation.?.*.bone_count + animation_bone_index)*4*4;
-                std.mem.copy(f32, matrix_buffer.?[bone_i*4*4 .. (bone_i+1)*4*4], 
-                self.active_animation.?.*.matrices_absolute[animation_bone_matrix_offset..animation_bone_matrix_offset+4*4]);
-
-            }
-        }
-        else {
-            // No animation, fill with identity matrices
-
-            // TODO create array of identity matrices in RTRenderEngine.init() and use that to avoid copy
-            var bone_i : u32 = 0;
-            while(bone_i < 128) : (bone_i += 1) {
-                std.mem.copy(f32, matrix_buffer.?[bone_i*4*4 .. bone_i*4*4+4*4], [16] f32{
-                    1.0,0.0,0.0,0.0,
-                    0.0,1.0,0.0,0.0,
-                    0.0,0.0,1.0,0.0,
-                    0.0,0.0,0.0,1.0});
-            }
-        }
-    }
-
     pub const DrawData = struct {
         mvp_matrix: *const Matrix(f32, 4), 
         model_matrix: *const Matrix(f32, 4),
@@ -262,9 +280,13 @@ pub const MeshRenderer = struct {
     };
 
     pub fn draw(self: *MeshRenderer, draw_data: DrawData, allocator: *std.mem.Allocator) !void {
+        if(self.mesh == null) {
+            return error.MeshRendererDestroyed;
+        }
+
         var shader_config = ShaderInstance.ShaderConfig {
             .shadow = false,
-            .inputs_bitmap = self.mesh.model.attributes_bitmap,
+            .inputs_bitmap = self.mesh.?.model.attributes_bitmap,
             .max_vertex_lights =  min(self.max_vertex_lights, getSettings().max_vertex_lights),
             .max_fragment_lights = min(self.max_fragment_lights, getSettings().max_fragment_lights),
             .non_uniform_scale = self.non_uniform_scale,
@@ -288,9 +310,9 @@ pub const MeshRenderer = struct {
         try shader.setNearPlanes(draw_data.near_planes);
         try shader.setFarPlanes(draw_data.far_planes);
 
-        if(self.mesh.model.attributes_bitmap & (1 << @enumToInt(ModelData.VertexAttributeType.BoneIndices)) != 0) {
-            self.setAnimationMatrices(shader);
-            try shader.setBoneMatrices(matrix_buffer.?);
+        if(self.mesh.?.model.attributes_bitmap & (1 << @enumToInt(ModelData.VertexAttributeType.BoneIndices)) != 0
+                and self.animation_object != null) {
+            try self.animation_object.?.setAnimationMatrices(shader, self.mesh.?);
         }
 
         if(shader.config.non_uniform_scale) {
@@ -299,17 +321,17 @@ pub const MeshRenderer = struct {
         }
 
         var i: u32 = 0;
-        while (i < self.mesh.model.material_count and i < 32) : (i += 1) {
+        while (i < self.mesh.?.model.material_count and i < 32) : (i += 1) {
             if (self.materials[i].texture == null) {
                 try rtrenderengine.getDefaultTexture().bindToUnit(0);
             } else {
-                try self.materials[i].texture.?.bindToUnit(0);
+                try self.materials[i].texture.?.texture.bindToUnit(0);
             }
             if (self.materials[i].normal_map == null) {
                 try rtrenderengine.getDefaultNormalMap().bindToUnit(1);
             }
             else {
-                try self.materials[i].normal_map.?.bindToUnit(1);
+                try self.materials[i].normal_map.?.texture.bindToUnit(1);
             }
 
             try shader.setSpecularIntensity(self.materials[i].specular_intensity);
@@ -320,7 +342,7 @@ pub const MeshRenderer = struct {
             var index_vertex_count: u32 = undefined;
             var utf8_name: []const u8 = undefined;
             var colour: [3]f32 = undefined;
-            self.mesh.model.getMaterial(i, &first_index, &index_vertex_count, &colour, &utf8_name) catch break;
+            self.mesh.?.model.getMaterial(i, &first_index, &index_vertex_count, &colour, &utf8_name) catch break;
 
             if(self.materials[i].colour_override == null) {
                 try shader.setColour(colour);
@@ -332,10 +354,10 @@ pub const MeshRenderer = struct {
             if(index_vertex_count > 0) {
                 shader.validate(allocator);
 
-                if (self.mesh.index_data_buffer == null) {
+                if (self.mesh.?.index_data_buffer == null) {
                     try self.vao.draw(VertexMeta.PrimitiveType.Triangles, first_index, index_vertex_count);
                 } else {
-                    try self.vao.drawWithIndices(VertexMeta.PrimitiveType.Triangles, self.mesh.model.vertex_count > 65536, first_index, index_vertex_count);
+                    try self.vao.drawWithIndices(VertexMeta.PrimitiveType.Triangles, self.mesh.?.model.vertex_count > 65536, first_index, index_vertex_count);
                 }
             }
         }
@@ -344,10 +366,13 @@ pub const MeshRenderer = struct {
     // For shadow maps
     pub fn drawDepthOnly(self: *MeshRenderer, allocator: *std.mem.Allocator, mvp_matrix: *const Matrix(f32, 4), 
             model_matrix: *const Matrix(f32, 4)) !void {
+        if(self.mesh == null) {
+            return error.MeshRendererDestroyed;
+        }
 
         var shader_config = ShaderInstance.ShaderConfig {
             .shadow = true,
-            .inputs_bitmap = self.mesh.model.attributes_bitmap,
+            .inputs_bitmap = self.mesh.?.model.attributes_bitmap,
 
             // Not used for shadows
             .max_vertex_lights = 0,
@@ -365,32 +390,70 @@ pub const MeshRenderer = struct {
         try shader.setModelMatrix(model_matrix);
         // try shader.setModelViewMatrix(model_view_matrix);
 
-        if(self.mesh.model.attributes_bitmap & (1 << @enumToInt(ModelData.VertexAttributeType.BoneIndices)) != 0) {
-            self.setAnimationMatrices(shader);
-            try shader.setBoneMatrices(matrix_buffer.?);
+        if(self.mesh.?.model.attributes_bitmap & (1 << @enumToInt(ModelData.VertexAttributeType.BoneIndices)) != 0
+                and self.animation_object != null) {
+            try self.animation_object.?.setAnimationMatrices(shader, self.mesh.?);
         }
 
         // TODO: Merge into one draw call where possible
         var i: u32 = 0;
-        while (i < self.mesh.model.material_count and i < 32) : (i += 1) {
+        while (i < self.mesh.?.model.material_count and i < 32) : (i += 1) {
             var first_index: u32 = undefined;
             var index_count: u32 = undefined;
             var utf8_name: []const u8 = undefined;
             var colour: [3]f32 = undefined;
-            self.mesh.model.getMaterial(i, &first_index, &index_count, &colour, &utf8_name) catch break;
+            self.mesh.?.model.getMaterial(i, &first_index, &index_count, &colour, &utf8_name) catch break;
 
             if(index_count > 0) {
-                if (self.mesh.index_data_buffer == null) {
+                if (self.mesh.?.index_data_buffer == null) {
                     try self.vao.draw(VertexMeta.PrimitiveType.Triangles, first_index, index_count);
                 } else {
-                    try self.vao.drawWithIndices(VertexMeta.PrimitiveType.Triangles, self.mesh.model.vertex_count > 65536, first_index, index_count);
+                    try self.vao.drawWithIndices(VertexMeta.PrimitiveType.Triangles, self.mesh.?.model.vertex_count > 65536, first_index, index_count);
                 }
             }
         }
     }
 
-    pub fn playAnimation(self: *MeshRenderer, animation: *AnimationData) void {
-        self.animation_start_time = this_frame_time;
-        self.active_animation = animation;
+    pub fn setAnimationObject(self: *MeshRenderer, animation_object: *Animation) void {
+        if(self.animation_object != null) {
+            self.animation_object.?.ref_count.dec();
+        }
+        animation_object.ref_count.inc();
+        self.animation_object = animation_object;
+    }
+
+    pub fn free(self: *MeshRenderer) void {
+        self.ref_count.deinit();
+        if(self.mesh != null) {
+            self.mesh.?.ref_count.dec();
+            self.mesh = null;
+
+            var i: u32 = 0;
+            while (i < 32) : (i += 1) {
+                self.materials[i].setTexture(null); 
+                self.materials[i].setNormalMap(null); 
+            }
+        }
+    }
+
+    // Frees mesh and textures if they become unused
+    pub fn freeIfUnused(self: *MeshRenderer) void {
+        if(self.ref_count.n != 0 or self.mesh == null) {
+            return;
+        }
+
+        self.mesh.?.ref_count.dec();
+        self.mesh.?.freeIfUnused();
+        self.mesh = null;
+
+        var i: u32 = 0;
+        while (i < 32) : (i += 1) {
+            self.materials[i].freeTexturesIfUnused();
+        }
+
+        if(self.animation_object != null) {
+            self.animation_object.?.ref_count.dec();
+            self.animation_object.?.freeIfUnused();
+        }
     }
 };

@@ -6,9 +6,12 @@ const CubeMap = @import("CubeMap.zig").CubeMap;
 const FrameBuffer = @import("FrameBuffer.zig").FrameBuffer;
 const window = @import("Window.zig");
 const c = @import("c.zig").c;
+const ReferenceCounter = @import("../RefCount.zig").ReferenceCounter;
 
 // For point shadows
 pub const CubeFrameBuffer = struct {
+    ref_count: ReferenceCounter = ReferenceCounter{},
+
     pub const Direction = enum(u32) {
         PositiveX,
         NegativeX,
@@ -106,6 +109,8 @@ pub const CubeFrameBuffer = struct {
     }
 
     pub fn free(self: *CubeFrameBuffer) void {
+        self.ref_count.deinit();
+        
         var i: u32 = 0;
 
         while (i < 6) : (i += 1) {

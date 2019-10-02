@@ -3,8 +3,11 @@ const assert = std.debug.assert;
 const window = @import("Window.zig");
 const c = @import("c.zig").c;
 const expect = std.testing.expect;
+const ReferenceCounter = @import("../RefCount.zig").ReferenceCounter;
 
 pub const Buffer = struct {
+    ref_count: ReferenceCounter = ReferenceCounter{},
+
     const buffer_type_gl = [_]c_uint {
         c.GL_ARRAY_BUFFER,
         c.GL_ELEMENT_ARRAY_BUFFER,
@@ -114,6 +117,7 @@ pub const Buffer = struct {
             assert(false);
             return;
         }
+        self.ref_count.deinit();
 
         c.glDeleteBuffers(1, @ptrCast([*c]const c_uint, &self.id));
         self.id = 0;

@@ -1,11 +1,14 @@
 const mesh = @import("Mesh.zig");
+const anim = @import("Animation.zig");
+pub const Animation = anim.Animation;
 pub const Mesh = mesh.Mesh;
 pub const MeshRenderer = mesh.MeshRenderer;
+pub const Texture2D = @import("Texture2D.zig").Texture2D;
 const PostProcess = @import("PostProcess.zig");
 const Matrix = @import("../Mathematics/Mathematics.zig").Matrix;
 const Vector = @import("../Mathematics/Mathematics.zig").Vector;
 const wgi = @import("../WindowGraphicsInput/WindowGraphicsInput.zig");
-const Texture2D = wgi.Texture2D;
+const Tex2D = wgi.Texture2D;
 const ImageType = wgi.ImageType;
 const MinFilter = wgi.MinFilter;
 const ShaderObject = wgi.ShaderObject;
@@ -21,6 +24,7 @@ const shdr = @import("Shader.zig");
 const assert = std.debug.assert;
 const warn = std.debug.warn;
 const Allocator = std.mem.Allocator;
+const ReferenceCounter = @import("../RefCount.zig").ReferenceCounter;
 
 // Time value set at start of each frame
 var this_frame_time: u64 = 0;
@@ -54,14 +58,14 @@ pub fn getSettings() *SettingsStruct {
 var brightness: f32 = 1.0;
 var contrast: f32 = 1.0;
 
-var default_texture: ?Texture2D = null;
-var default_normal_map: ?Texture2D = null;
+var default_texture: ?Tex2D = null;
+var default_normal_map: ?Tex2D = null;
 
-pub fn getDefaultTexture() *const Texture2D {
+pub fn getDefaultTexture() *const Tex2D {
     return &default_texture.?;
 }
 
-pub fn getDefaultNormalMap() *const Texture2D {
+pub fn getDefaultNormalMap() *const Tex2D {
     return &default_normal_map.?;
 }
 
@@ -239,6 +243,7 @@ pub const Object = struct {
 
     transform: Matrix(f32, 4) = Matrix(f32, 4).identity(),
 
+    // If parent is null then the object has been deleted
     parent: ?*Object = null,
     first_child: ?*Object = null,
     next: ?*Object = null,
@@ -248,16 +253,87 @@ pub const Object = struct {
 
     // objects don't have to have a mesh renderer.
     // meshes can be used by multiple different objects
-    mesh_renderer: ?MeshRenderer = null,
+    // DO NOT ALTER THIS VARIABLE. USE fn setMeshRenderer
+    mesh_renderer: ?*MeshRenderer = null,
 
     // camera direction = transform * (0,0,-1).
     is_camera: bool = false,
 
     light: ?Light = null,
 
-    // -- INTERNAL VARIABLES (USED DURING RENDER) --
+    // -- INTERNAL VARIABLES (DO NOT TOUCH) --
 
     true_transform: ?Matrix(f32, 4) = null,
+
+    pub fn init(name: []const u8) Object {
+        var obj = Object {};
+        obj.name_length = std.math.min(@intCast(u32, name.len), 16);
+        std.mem.copy(u8, obj.name[0..obj.name_length], name[0..obj.name_length]);
+        return obj;
+    }
+
+    pub fn delete_(self: *Object, free_resources: bool) void {
+        // Detatch associated resources
+
+        if(self.mesh_renderer != null) {
+            self.mesh_renderer.?.ref_count.dec();
+            if(free_resources) {
+                self.mesh_renderer.?.freeIfUnused();
+            }
+        }
+        self.mesh_renderer = null;
+
+        // Delete the children
+
+        if(self.first_child != null) {
+            self.first_child.?.delete_(free_resources);
+        }
+        if(self.next != null and self.next.? != self and self.next.? != self.parent.?.first_child.?) {
+            self.next.?.delete_(free_resources);
+        }
+    }
+
+    // Also deletes all children
+    pub fn delete(self: *Object, free_resources: bool) void {
+
+        // Detatch from parent
+
+        if (self.parent != null) {
+            if (self.parent.?.*.first_child == self) {
+                if (self.next == null) {
+                    self.parent.?.*.first_child = null;
+                } else {
+                    self.parent.?.*.first_child = self.next;
+                    self.next.?.prev = null;
+                    self.prev.?.next = null;
+                }
+            } else {
+                self.prev.?.next = self.next;
+                self.next.?.prev = self.prev;
+
+                if(self.prev.?.next == self.prev.? or self.prev.?.prev == self.prev.?) {
+                    self.prev.?.next = null;
+                    self.prev.?.prev = null;
+                }
+
+                if(self.next.?.next == self.next.? or self.next.?.prev == self.next.?) {
+                    self.next.?.next = null;
+                    self.next.?.prev = null;
+                }
+            }
+            self.parent = null;
+        }
+
+        if(free_resources) {
+            self.delete_(free_resources);
+        }
+
+        
+    }
+
+    pub fn setMeshRenderer(self: *Object, mesh_renderer: ?*MeshRenderer) void {
+        ReferenceCounter.set(MeshRenderer, &self.mesh_renderer, mesh_renderer);
+    }
 
     pub fn addChild(self: *Object, child: *Object) !void {
         if (child.parent != null) {
@@ -394,7 +470,7 @@ pub const Object = struct {
         var i: u32 = 0; // index into lights_slice
         var j: u32 = 0; // index into light arrays
         while (i < getSettings().max_fragment_lights and i < max_fragment_lights and i < lights_slice.len) : (i += 1) {
-            if(lights_slice[i].*.light.?.lightShouldBeUsed(&self.mesh_renderer.?)) {
+            if(lights_slice[i].*.light.?.lightShouldBeUsed(self.mesh_renderer.?)) {
                 fragment_light_indices[j] = @intCast(i32, lights_slice[i].*.light.?.uniform_array_index);
 
                 if (lights_slice[i].*.light.?.cast_realtime_shadows and getSettings().enable_shadows) {
@@ -416,14 +492,14 @@ pub const Object = struct {
 
         j = 0;
         while (j < 8 and i < lights_slice.len and i < max_vertex_lights and i < getSettings().max_vertex_lights) {
-            if(lights_slice[i].*.light.?.lightShouldBeUsed(&self.mesh_renderer.?)) {                            
+            if(lights_slice[i].*.light.?.lightShouldBeUsed(self.mesh_renderer.?)) {                            
                 vertex_light_indices[j] = @intCast(i32, lights_slice[i].*.light.?.uniform_array_index);
                 i += 1;
                 j += 1;
             }
         }
 
-        if(self.mesh_renderer.?.enable_per_object_light) {
+        if(self.mesh_renderer.?.*.enable_per_object_light) {
             // Everything else is applied per-object
 
             while (i < lights_slice.len) : (i += 1) {
@@ -455,7 +531,7 @@ pub const Object = struct {
 
         if (depth_only) {
             // For shadow maps
-            try self.mesh_renderer.?.drawDepthOnly(allocator, &mvp_matrix, &self.true_transform.?);
+            try self.mesh_renderer.?.*.drawDepthOnly(allocator, &mvp_matrix, &self.true_transform.?);
         } else {
             var draw_data = MeshRenderer.DrawData {
                 .mvp_matrix = &mvp_matrix,
@@ -474,7 +550,7 @@ pub const Object = struct {
             var fragment_light_shadow_textures: [4](?*const FrameBuffer) = [4](?*const FrameBuffer){ null, null, null, null };
             var fragment_light_shadow_cube_texture: [4](?*const CubeFrameBuffer) = [4](?*const CubeFrameBuffer){ null, null, null, null };
 
-            self.getLightData(self.mesh_renderer.?.max_vertex_lights, self.mesh_renderer.?.max_fragment_lights, &draw_data.light, &draw_data.vertex_light_indices, &draw_data.fragment_light_indices, &draw_data.fragment_light_matrices, &fragment_light_shadow_textures, &fragment_light_shadow_cube_texture, &draw_data.near_planes, &draw_data.far_planes);
+            self.getLightData(self.mesh_renderer.?.*.max_vertex_lights, self.mesh_renderer.?.*.max_fragment_lights, &draw_data.light, &draw_data.vertex_light_indices, &draw_data.fragment_light_indices, &draw_data.fragment_light_matrices, &fragment_light_shadow_textures, &fragment_light_shadow_cube_texture, &draw_data.near_planes, &draw_data.far_planes);
 
             var i: u32 = 0;
             while (i < 4) : (i += 1) {
@@ -488,34 +564,6 @@ pub const Object = struct {
 
 
             try self.mesh_renderer.?.draw(draw_data, allocator);
-        }
-    }
-
-    pub fn free(self: *Object) void {
-        if (self.parent != null) {
-            if (self.parent.?.*.first_child == self) {
-                if (self.next == null) {
-                    self.parent.?.*.first_child = null;
-                } else {
-                    self.parent.?.*.first_child = self.next;
-                    self.next.?.prev = null;
-                    self.prev.?.next = null;
-                }
-            } else {
-                self.prev.?.next = self.next;
-                self.next.?.prev = self.prev;
-
-                if(self.prev.?.next == &self.prev.? or self.prev.?.prev == &self.prev.?) {
-                    self.prev.?.next = null;
-                    self.prev.?.prev = null;
-                }
-
-                if(self.next.?.next == &self.next.? or self.next.?.prev == &self.next.?) {
-                    self.next.?.next = null;
-                    self.next.?.prev = null;
-                }
-            }
-            self.parent = null;
         }
     }
 };
@@ -590,14 +638,14 @@ pub fn init(time: u64, allocator: *Allocator) !void {
     try PostProcess.loadSourceFiles(allocator);
 
     try shdr.init(allocator);
-    try mesh.allocateStaticData(allocator);
+    try anim.allocateStaticData(allocator);
 
-    default_texture = try Texture2D.init(false, MinFilter.Nearest);
+    default_texture = try Tex2D.init(false, MinFilter.Nearest);
     errdefer default_texture.?.free();
     try default_texture.?.upload(1, 1, ImageType.RGBA, [4]u8{ 0xff, 0xff, 0xff, 0xff });
 
     
-    default_normal_map = try Texture2D.init(false, MinFilter.Nearest);
+    default_normal_map = try Tex2D.init(false, MinFilter.Nearest);
     errdefer default_normal_map.?.free();
     try default_normal_map.?.upload(1, 1, ImageType.RGBA, [4]u8{ 0x80, 0x80, 0xff, 0xff });
 

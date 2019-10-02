@@ -9,6 +9,7 @@ const MinFilter = image.MinFilter;
 const image_type_base_internal_formats = image.image_type_base_internal_formats;
 const image_type_sized_internal_formats = image.image_type_sized_internal_formats;
 const ImageType = image.ImageType;
+const ReferenceCounter = @import("../RefCount.zig").ReferenceCounter;
 
 // For each of the 6 sides (multiply return value by 6 to get total cubemap size)
 pub fn imageDataSize(size: u32, imgType: ImageType) u32 {
@@ -29,6 +30,8 @@ pub fn imageDataSize(size: u32, imgType: ImageType) u32 {
 
 // Cubemaps are always square
 pub const CubeMap = struct {
+    ref_count: ReferenceCounter = ReferenceCounter{},
+
     // width and height in pixels
     size: u32,
     imageType: ImageType,
@@ -157,6 +160,7 @@ pub const CubeMap = struct {
             assert(false);
             return;
         }
+        self.ref_count.deinit();
         c.glDeleteTextures(1, @ptrCast([*c]c_uint, &self.id));
     }
 
