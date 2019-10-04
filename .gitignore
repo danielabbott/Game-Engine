@@ -1,7 +1,10 @@
 *.o
-deps/glfw/
-!deps/glfw/**.c
-!deps/glfw/**.h
+deps/glfw/CMakeCache.txt
+deps/glfw/CMakeFiles
+deps/glfw/src/CMakeFiles
+deps/glfw/cmake_install.cmake
+deps/glfw/cmake_uninstall.cmake
+deps/glfw/src/cmake_install.cmake
 *.sln
 **/.vs/
 *.vcxproj
