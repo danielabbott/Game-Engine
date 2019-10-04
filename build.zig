@@ -75,7 +75,7 @@ pub fn build(b: *Builder) void {
 
     // tools
 
-    const compress_exe = b.addExecutable("compress-file", "src/Compress/compressapp.zig");
+    const compress_exe = b.addExecutable("compress-file", "src/Compress/CompressApp.zig");
     compress_exe.setBuildMode(mode);
     compress_exe.setMainPkgPath("src");
     addSettings(compress_exe);
