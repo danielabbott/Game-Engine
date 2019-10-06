@@ -471,7 +471,7 @@ pub const ShaderInstance = struct {
         }
     }
 
-    pub fn setBoneMatrices (self: ShaderInstance, matrices: []f32) !void {
+    pub fn setBoneMatrices (self: ShaderInstance, matrices: []const f32) !void {
         if (self.bone_matrices_location != null) {
             try self.shader_program.setUniformMat4(self.bone_matrices_location.?, @intCast(i32, matrices.len / 16), matrices);
         }

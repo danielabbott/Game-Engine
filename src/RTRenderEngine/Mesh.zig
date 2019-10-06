@@ -310,9 +310,13 @@ pub const MeshRenderer = struct {
         try shader.setNearPlanes(draw_data.near_planes);
         try shader.setFarPlanes(draw_data.far_planes);
 
-        if(self.mesh.?.model.attributes_bitmap & (1 << @enumToInt(ModelData.VertexAttributeType.BoneIndices)) != 0
-                and self.animation_object != null) {
-            try self.animation_object.?.setAnimationMatrices(shader, self.mesh.?);
+        if(self.mesh.?.model.attributes_bitmap & (1 << @enumToInt(ModelData.VertexAttributeType.BoneIndices)) != 0) {
+            if(self.animation_object == null) {
+                Animation.setAnimationIdentityMatrices(shader, allocator) catch {};
+            }
+            else {
+                try self.animation_object.?.setAnimationMatrices(shader, self.mesh.?.model);
+            }
         }
 
         if(shader.config.non_uniform_scale) {
@@ -390,9 +394,13 @@ pub const MeshRenderer = struct {
         try shader.setModelMatrix(model_matrix);
         // try shader.setModelViewMatrix(model_view_matrix);
 
-        if(self.mesh.?.model.attributes_bitmap & (1 << @enumToInt(ModelData.VertexAttributeType.BoneIndices)) != 0
-                and self.animation_object != null) {
-            try self.animation_object.?.setAnimationMatrices(shader, self.mesh.?);
+        if(self.mesh.?.model.attributes_bitmap & (1 << @enumToInt(ModelData.VertexAttributeType.BoneIndices)) != 0) {
+            if(self.animation_object == null) {
+                Animation.setAnimationIdentityMatrices(shader, allocator) catch {};
+            }
+            else {
+                try self.animation_object.?.setAnimationMatrices(shader, self.mesh.?.model);
+            }
         }
 
         // TODO: Merge into one draw call where possible
@@ -415,11 +423,7 @@ pub const MeshRenderer = struct {
     }
 
     pub fn setAnimationObject(self: *MeshRenderer, animation_object: *Animation) void {
-        if(self.animation_object != null) {
-            self.animation_object.?.ref_count.dec();
-        }
-        animation_object.ref_count.inc();
-        self.animation_object = animation_object;
+        ReferenceCounter.set(Animation, &self.animation_object, animation_object);
     }
 
     pub fn free(self: *MeshRenderer) void {

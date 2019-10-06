@@ -283,7 +283,7 @@ pub const ShaderProgram = struct {
         c.glUniform4f(location, data[0], data[1], data[2], data[3]);
     }
 
-    pub fn setUniformMat2(self: ShaderProgram, location: i32, count: i32, data: []f32) !void {
+    pub fn setUniformMat2(self: ShaderProgram, location: i32, count: i32, data: []const f32) !void {
         if (location == -1) {
             assert(false);
             return error.InvalidParameter;
@@ -302,7 +302,7 @@ pub const ShaderProgram = struct {
         c.glUniformMatrix2fv(location, count, 0, data.ptr);
     }
 
-    pub fn setUniformMat3(self: ShaderProgram, location: i32, count: i32, data: []f32) !void {
+    pub fn setUniformMat3(self: ShaderProgram, location: i32, count: i32, data: []const f32) !void {
         if (location == -1) {
             assert(false);
             return error.InvalidParameter;
@@ -321,7 +321,7 @@ pub const ShaderProgram = struct {
         c.glUniformMatrix3fv(location, count, 0, data.ptr);
     }
 
-    pub fn setUniformMat4(self: ShaderProgram, location: i32, count: i32, data: []f32) !void {
+    pub fn setUniformMat4(self: ShaderProgram, location: i32, count: i32, data: []const f32) !void {
         if (location == -1) {
             assert(false);
             return error.InvalidParameter;

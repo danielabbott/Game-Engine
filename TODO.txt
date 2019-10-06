@@ -1,7 +1,6 @@
 (These are in no particular order)
 
 condition variables on linux
-change animation files so matrices can be copied directly to OpenGL without std.mem.copy
 point light shadows
 proper scene editor
 reduce 'bumpiness' of shadows

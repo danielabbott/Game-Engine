@@ -638,7 +638,6 @@ pub fn init(time: u64, allocator: *Allocator) !void {
     try PostProcess.loadSourceFiles(allocator);
 
     try shdr.init(allocator);
-    try anim.allocateStaticData(allocator);
 
     default_texture = try Tex2D.init(false, MinFilter.Nearest);
     errdefer default_texture.?.free();

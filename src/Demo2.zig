@@ -1,3 +1,12 @@
+// Controls:
+// Left mouse button: click and drag to rotate model
+// P: Pause animation
+// U: Unpause animation
+// [: Decrease brightness
+// ]: Increase brightness
+// ,: Decrease contrast
+// .: Increase contrast
+
 const std = @import("std");
 const warn = std.debug.warn;
 const wgi = @import("WindowGraphicsInput/WindowGraphicsInput.zig");
@@ -166,8 +175,7 @@ pub fn main() !void {
     minotaur_object.mesh_renderer.?.materials[0].setNormalMap(&t4);
     minotaur_object.mesh_renderer.?.materials[0].specular_intensity = 0.0;
 
-    var animation_object = Animation.init();
-    try animation_object.playAnimationFromAsset(minotaur_animation_asset);
+    var animation_object = try Animation.initFromAssets(minotaur_animation_asset, minotaur_model_asset, c_allocator);
     minotaur_object.mesh_renderer.?.setAnimationObject(&animation_object);
 
     try root_object.addChild(&minotaur_object);
@@ -228,6 +236,12 @@ pub fn main() !void {
             }
         } else if (input.isKeyDown(Constants.KEY_PERIOD)) {
             contrast += 0.01;
+        }
+
+        if (input.isKeyDown(Constants.KEY_P)) {
+            animation_object.pause();
+        } else if (input.isKeyDown(Constants.KEY_U)) {
+            animation_object.unpause();            
         }
 
         render.setImageCorrection(brightness, contrast);
