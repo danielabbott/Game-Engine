@@ -3,7 +3,7 @@
 condition variables on linux
 point light shadows
 proper scene editor
-reduce 'bumpiness' of shadows
+reimplement shadow antialiasing
 should model data include bitangents?
 can vertices be cached after doing bone transformation in the shadow vertex shader for reuse in the main render pass?
 debugging icons (layered over scene) for bones (position in 3d) and lights (position, angle, clipping planes)

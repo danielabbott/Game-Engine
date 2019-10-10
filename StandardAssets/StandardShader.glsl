@@ -143,28 +143,26 @@ uniform mat4 model_matrix;
 			TEX(3)
 			#undef TEX
 
-			const float shadowGap = 0.0001;
+			// Because this value is negative, the shadow test will pass even where there is no shadow
+			// This works because the shadow blur code reduces the shadow intensity around the edges
+			const float shadowGap = -0.001;
 
-			if(lightMapCoords.z < 0 && shadowValueCentre == 0) {
+			if(shadowValueCentre == 0) {
 				return 1.0;
 			}
 
 			if(shadowValueCentre-lightMapCoords.z > shadowGap) {
-				return 0.2;
-			}
-			else {
-				// TODO currently we do these extra texture reads for pixels which aren't in shadow
-				// could we do them only for pixels which are in shadow instead?
-
+				// In shadow
+				
 				vec4 shadowValuesSides;
 				vec4 shadowValuesCorners;
 
 				#define TEX(II) \
 					if(i == II) { \
-						shadowValuesSides = vec4(textureOffset(shadowTexture##II, lightMapCoords01.xy, ivec2(1, 0)).r, \
-						textureOffset(shadowTexture##II, lightMapCoords01.xy, ivec2(-1, 0)).r, \
-						textureOffset(shadowTexture##II, lightMapCoords01.xy, ivec2(0, 1)).r, \
-						textureOffset(shadowTexture##II, lightMapCoords01.xy, ivec2(0, -1)).r); \
+						shadowValuesSides = vec4(textureOffset(shadowTexture##II, lightMapCoords01.xy, ivec2(2, 0)).r, \
+						textureOffset(shadowTexture##II, lightMapCoords01.xy, ivec2(-2, 0)).r, \
+						textureOffset(shadowTexture##II, lightMapCoords01.xy, ivec2(0, 2)).r, \
+						textureOffset(shadowTexture##II, lightMapCoords01.xy, ivec2(0, -2)).r); \
 						\
 						shadowValuesCorners = vec4(textureOffset(shadowTexture##II, lightMapCoords01.xy, ivec2(1, 1)).r, \
 						textureOffset(shadowTexture##II, lightMapCoords01.xy, ivec2(-1, -1)).r, \
@@ -177,35 +175,44 @@ uniform mat4 model_matrix;
 				TEX(2)
 				TEX(3)
 				#undef TEX
-			
-				vec2 shadowMapSizeF = vec2(shadowMapSize);
-				float shade = 0.0;
-				float fractx = fract(lightMapCoords01.x * shadowMapSizeF.x);
-				float fracty = fract(lightMapCoords01.y * shadowMapSizeF.y);
 
-				vec4 additionValues = vec4(fractx, 1.0-fractx, fracty, 1.0-fracty);
+				// TODO this works but we need to blur it
 
-				vec4 b = max(vec4(0.0), sign(shadowValuesSides - vec4(lightMapCoords.z+shadowGap))) * additionValues;
-				shade += dot(b, vec4(1.0));
+				// TODO remove this when optimising - do everything as vector oeprations again
+				float shadowValues[8];					
+				shadowValues[0] = shadowValuesSides.x; 
+				shadowValues[1] = shadowValuesSides.y; 
+				shadowValues[2] = shadowValuesSides.z; 
+				shadowValues[3] = shadowValuesSides.w;				
+				shadowValues[4] = shadowValuesCorners.x; 
+				shadowValues[5] = shadowValuesCorners.y; 
+				shadowValues[6] = shadowValuesCorners.z; 
+				shadowValues[7] = shadowValuesCorners.w;
 
-				// corners
+				// 0 = full shadow, 1.0 = not shadow
+				float light = 0.0;
 
-				additionValues = vec4(fractx * fracty,  (1.0-fractx) * (1.0-fracty), fractx * (1.0-fracty), (1.0-fractx) * fracty);
-
-				b = max(vec4(0.0), sign(shadowValuesCorners - vec4(lightMapCoords.z+shadowGap))) * additionValues;
-				shade += dot(b, vec4(1.0));
-
-
-				// Code above is eqivilent to this:
-				// for(int i = 0; i < 8; i++) {
-				// 	if(shadowValues[1+i]-lightMapCoords.z > shadowGap) {
-				// 		shade += additionValues[i];
-				// 	}
-				// }
-				//
+				for(int i = 0; i < 4; i++) {
+					if(shadowValues[i]-lightMapCoords.z < shadowGap) {
+						// If not in shadow
+						light += 0.15;
+					}
+				}
+				for(int i = 4; i < 8; i++) {
+					if(shadowValues[i]-lightMapCoords.z < shadowGap) {
+						light += 0.1;
+					}
+				}
 
 
-				return 1.0 - smoothstep(0.0, 1.0, min(1.0, shade)) * 0.8;
+				light = 1.0 - ((1.0-light)*(1.0-light));						
+
+
+				return 0.2 + smoothstep(0.0, 1.0, clamp(light, 0.0, 1.0)) * 0.8;
+			}
+			else {
+				// Not in shadow
+				return 1.0;
 			}
 		}
 	#endif // defined(ENABLE_SHADOWS)
