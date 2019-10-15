@@ -1,3 +1,5 @@
+precision mediump float;
+
 uniform sampler2D main_texture; // texture unit 0
 
 #ifdef NORMAL_MAP

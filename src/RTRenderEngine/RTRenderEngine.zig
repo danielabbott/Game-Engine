@@ -599,7 +599,7 @@ fn objectsPrePass(o: *Object, allocator: *Allocator, camera_object: *(?*Object),
         }
         uniform_data.?.lights[lights_count] = UniformDataLight{
             .positionAndType = [4]f32{ l.light_pos.data[0], l.light_pos.data[1], l.light_pos.data[2], @intToFloat(f32, type_) },
-            .directionAndAngle = [4]f32{ rot.data[0], rot.data[1], rot.data[2], l.angle },
+            .directionAndAngle = [4]f32{ -rot.data[0], -rot.data[1], -rot.data[2], l.angle },
             .intensity = [4]f32{ l.colour[0], l.colour[1], l.colour[2], l.attenuation },
         };
 

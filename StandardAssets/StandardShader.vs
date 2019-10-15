@@ -30,6 +30,10 @@ in vec3 in_coords;
 
 #ifndef SHADOW_MAP
 
+	#ifdef ENABLE_SHADOWS
+		out SHADOW_COORDS_PASS_VAR_TYPE shadowDepthMapCoordinates;
+	#endif
+
 	#ifdef HAS_TEXTURE_COORDINATES
 		out vec2 pass_texture_coordinates;
 	#endif
@@ -170,6 +174,25 @@ void main() {
 			#endif
 			
 			pass_position = pos;
+
+			#ifdef ENABLE_SHADOWS
+				#if MAX_FRAGMENT_LIGHTS == 1
+					shadowDepthMapCoordinates = lightMatrices[0] * vec4(pos, 1.0);
+				#else
+					SHADOW_COORDS_PASS_VAR_TYPE depthMapCoords = SHADOW_COORDS_PASS_VAR_TYPE(1.0);
+					depthMapCoords[0] = lightMatrices[0] * vec4(pos, 1.0);
+					#if MAX_FRAGMENT_LIGHTS >= 2
+						depthMapCoords[1] = lightMatrices[1] * vec4(pos, 1.0);
+					#endif
+					#if MAX_FRAGMENT_LIGHTS >= 3
+						depthMapCoords[2] = lightMatrices[2] * vec4(pos, 1.0);
+					#endif
+					#if MAX_FRAGMENT_LIGHTS >= 4
+						depthMapCoords[3] = lightMatrices[3] * vec4(pos, 1.0);
+					#endif
+					shadowDepthMapCoordinates = depthMapCoords;
+				#endif
+			#endif
 		#endif
 		
 		#if MAX_VERTEX_LIGHTS > 0
