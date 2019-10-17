@@ -1,8 +1,12 @@
-OpenGL forward renderer.
+## OpenGL forward renderer.
 
 Tested with Zig 0.5.0
 
--- Modules --
+Demo 1:
+![Demo 1 Screenshot](https://raw.githubusercontent.com/danielabbott/Game-Engine/master/docs/screenshot.jpg)
+(Credits for farm assets is in the DemoAssets directory)
+
+### Modules
 
 WindowGraphicsInput: Abstraction over window creation (GLFW 3), user input (GLFW 3), and the graphics API (OpenGL 3.3, GLAD)
 	Depends on: GLFW, GLAD, stb_image, RefCount.zig, Files.zig
@@ -20,7 +24,7 @@ RGB10A2: 10-bits-per-channel texture support
 	Depends on: Files.zig
 
 
--- Compile Instructions (Windows) --
+### Compile Instructions (Windows)
 
 1. Run compile_deps.bat
 	* Modify the file if needed e.g. to change the visual studio version
@@ -31,7 +35,7 @@ RGB10A2: 10-bits-per-channel texture support
 
 Output is in zig-cache/bin. The batch script ^ will run the example program automatically.
 
--- Compile Instructions (Linux) --
+### Compile Instructions (Linux)
 
 1. Run compile_deps.sh (might need to run sudo chmod +x ./compile_deps.sh)
 	* Change 'make -j3' to 'make -j4' etc. wherever it appears in the script if your computer has more than 2 CPU cores.
@@ -41,6 +45,6 @@ Output is in zig-cache/bin.
 
 Demo programs must be run from the root directory of the project.
 
---- N.B. ---
+#### N.B.
 
 A lot of structs have reference counting. If this isn't needed the functionality can be safely ignored by the calling code.
