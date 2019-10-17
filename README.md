@@ -8,20 +8,21 @@ Demo 1:
 
 ### Modules
 
-WindowGraphicsInput: Abstraction over window creation (GLFW 3), user input (GLFW 3), and the graphics API (OpenGL 3.3, GLAD)
-	Depends on: GLFW, GLAD, stb_image, RefCount.zig, Files.zig
-Mathematics: Matrix and Vector types
-ModelFiles: Loading of models and animations from the custom file formats
-RTRenderEngine: Real-time rendering of scenes
-	Depends on: WindowGraphicsInput, Mathematics, ModelFiles, Assets, Files.zig, RefCount.zig
-Compress: Custom compressed file format
-	Depends on: ZSTD, Files.zig
-Assets: Abstraction ovet the loading of assets such as models, animations, textures, etc.
-	Depends on: Compress, ConditionVariable.zig, Files.zig ModelFiles, RefCount.zig
-Scene: Scene files
-	Depends on: Assets, RTRenderEngine, Files.zig, Mathematics, WindowGraphicsInput
-RGB10A2: 10-bits-per-channel texture support
-	Depends on: Files.zig
+* WindowGraphicsInput: Abstraction over window creation (GLFW 3), user input (GLFW 3), and the graphics API (OpenGL 3.3, GLAD).<br>Depends on: GLFW, GLAD, stb_image, RefCount.zig, Files.zig
+
+* Mathematics: Matrix and Vector types
+
+* ModelFiles: Loading of models and animations from the custom file formats
+
+* RTRenderEngine: Real-time rendering of scenes.<br>Depends on: WindowGraphicsInput, Mathematics, ModelFiles, Assets, Files.zig, RefCount.zig
+
+* Compress: Custom compressed file format.<br>Depends on: ZSTD, Files.zig
+
+* Assets: Abstraction ovet the loading of assets such as models, animations, textures, etc.<br>Depends on: Compress, ConditionVariable.zig, Files.zig ModelFiles, RefCount.zig
+
+* Scene: Scene files.<br>Depends on: Assets, RTRenderEngine, Files.zig, Mathematics, WindowGraphicsInput
+	
+* RGB10A2: 10-bits-per-channel texture support.<br>Depends on: Files.zig
 
 
 ### Compile Instructions (Windows)
