@@ -125,8 +125,8 @@ pub fn main() !void {
 
     var camera: render.Object = render.Object.init("camera");
     try root_object.addChild(&camera);
-    camera.is_camera = true;
-    camera.transform = Matrix(f32, 4).translate(Vector(f32, 3).init([3]f32{0, 1, 5}));
+    camera.setTransform(Matrix(f32, 4).translate(Vector(f32, 3).init([3]f32{0, 1, 5})));
+    render.setActiveCamera(&camera);
 
     var light: render.Object = render.Object.init("light");
     light.light = render.Light{
@@ -135,7 +135,7 @@ pub fn main() !void {
         .attenuation = 0.8,
         .cast_realtime_shadows = false,
     };
-    light.transform = Matrix(f32, 4).translate(Vector(f32, 3).init([3]f32{ 4.0, 4.0, 1.0 }));
+    light.setTransform(Matrix(f32, 4).translate(Vector(f32, 3).init([3]f32{ 4.0, 4.0, 1.0 })));
     try root_object.addChild(&light);
 
     // Wait for game assets to finish loading
@@ -250,7 +250,7 @@ pub fn main() !void {
         if (mouse_button_down) {
             // Rotate minotaur to in direction of mouse cursor
             model_rotation += @intToFloat(f32, mouse_pos[0] - mouse_pos_prev[0]) * deltaTime;
-            minotaur_object.transform = Matrix(f32, 4).rotateY(model_rotation);
+            minotaur_object.setTransform(Matrix(f32, 4).rotateY(model_rotation));
         }
         mouse_pos_prev = mouse_pos;
 

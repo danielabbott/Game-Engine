@@ -133,11 +133,6 @@ void main() {
 #endif
 	gl_Position = mvp_matrix * coordinates;
 
-// #ifdef SHADOW_MAP
-// 	// gl_Position.y = (1.0 - ((gl_Position.y + 1.0) * 0.5)) * 2.0 - 1.0;
-// 	// gl_Position.x = (1.0 - ((gl_Position.x + 1.0) * 0.5)) * 2.0 - 1.0;
-// #endif
-
 #ifndef SHADOW_MAP
 
 	#ifdef HAS_TEXTURE_COORDINATES

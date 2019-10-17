@@ -7,7 +7,6 @@ uniform mat4 model_matrix;
 	#undef ENABLE_SHADOWS
 #endif
 
-
 #if !defined(ENABLE_POINT_LIGHTS) && !defined(ENABLE_DIRECTIONAL_LIGHTS) && !defined(ENABLE_SPOT_LIGHTS)
 	#undef MAX_FRAGMENT_LIGHTS
 	#define MAX_FRAGMENT_LIGHTS 0
@@ -128,16 +127,12 @@ uniform mat4 model_matrix;
 		float doShadow(int i, bool perspective) {
 			vec3 lightMapCoords;
 			vec3 lightMapCoords01;
-			if(perspective) {
-				vec4 lightMapCoordsxyzw = GET_SHADOW_COORDS(i);
-				lightMapCoordsxyzw.xyz /= lightMapCoordsxyzw.w;
-				lightMapCoords = lightMapCoordsxyzw.xyz;
-				lightMapCoords01 = lightMapCoords*0.5+0.5;
-			}
-			else {
-				lightMapCoords = GET_SHADOW_COORDS(i).xyz;
-				lightMapCoords01 = lightMapCoords*0.5+0.5;
-			}
+			
+			vec4 lightMapCoordsxyzw = GET_SHADOW_COORDS(i);
+			lightMapCoordsxyzw.xyz /= lightMapCoordsxyzw.w;
+			lightMapCoords = lightMapCoordsxyzw.xyz;
+			lightMapCoords01 = lightMapCoords*0.5+0.5;
+			
 
 			if(any( greaterThan(abs(lightMapCoords.xy), vec2(1.0)) )) {
 				return 1.0;
@@ -170,9 +165,7 @@ uniform mat4 model_matrix;
 				#undef TEX
 			#endif
 
-			// Because this value is negative, the shadow test will pass even where there is no shadow
-			// This works because the shadow blur code reduces the shadow intensity around the edges
-			const float shadowGap = -0.001;
+			const float shadowGap = 0.00001;
 
 			if(shadowValueCentre == 0) {
 				return 1.0;
@@ -232,8 +225,6 @@ uniform mat4 model_matrix;
 
 				// 0 = full shadow, 1.0 = not shadow
 				float light = dot(values1, vec4(1.0)) + dot(values2, vec4(1.0));
-
-
 
 				light = 1.0 - ((1.0-light)*(1.0-light));
 

@@ -189,7 +189,6 @@ pub fn loadSceneFromFile(file_data: [] align(4) const u8, assets_list: []Asset, 
         const parent = scene_file_u32[offset];
         const has_mesh_renderer = scene_file_u32[offset+1] != 0;
         const has_light = scene_file_u32[offset+2] != 0;
-        o.is_camera = scene_file_u32[offset+3] != 0;
         o.inherit_parent_transform = scene_file_u32[offset+4] != 0;
         offset += 5;
 

@@ -391,6 +391,21 @@ pub const ShaderProgram = struct {
         c.glUniform1fv(location, @intCast(c_int, data.len), @ptrCast([*c]const f32, data.ptr));
     }
 
+    pub fn setUniform2fv(self: ShaderProgram, location: i32, data: []const f32) !void {
+        if (location == -1) {
+            assert(false);
+            return error.InvalidParameter;
+        }
+        if (data.len == 0 or data.len % 2 != 0) {
+            assert(false);
+            return error.InvalidParameter;
+        }
+
+        try self.bind();
+
+        c.glUniform2fv(location, @intCast(c_int, data.len / 2), @ptrCast([*c]const f32, data.ptr));
+    }
+
     pub fn getUniformBlockIndex(self: ShaderProgram, name: [*]const u8) !u32 {
         if (self.id == 0) {
             assert(false);

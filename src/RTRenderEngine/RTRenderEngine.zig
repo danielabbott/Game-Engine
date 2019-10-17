@@ -227,6 +227,7 @@ pub const Light = struct {
                 try renderObjects(root_object, allocator, &view_matrix, &projection_matrix.?, true);
             }
         }
+        
     }
 };
 
@@ -241,7 +242,6 @@ pub const Object = struct {
     name: [16]u8 = ([1]u8 {0}) ** 16,
     name_length: u32 = 0,
 
-    transform: Matrix(f32, 4) = Matrix(f32, 4).identity(),
 
     // If parent is null then the object has been deleted
     parent: ?*Object = null,
@@ -256,10 +256,11 @@ pub const Object = struct {
     // DO NOT ALTER THIS VARIABLE. USE fn setMeshRenderer
     mesh_renderer: ?*MeshRenderer = null,
 
-    // camera direction = transform * (0,0,-1).
-    is_camera: bool = false,
-
     light: ?Light = null,
+
+    // -- INTERNAL VARIABLES (READ-ONLY)
+
+    transform: Matrix(f32, 4) = Matrix(f32, 4).identity(),
 
     // -- INTERNAL VARIABLES (DO NOT TOUCH) --
 
@@ -270,6 +271,22 @@ pub const Object = struct {
         obj.name_length = std.math.min(@intCast(u32, name.len), 16);
         std.mem.copy(u8, obj.name[0..obj.name_length], name[0..obj.name_length]);
         return obj;
+    }
+
+    pub fn setTransform(self: *Object, new_transform: Matrix(f32, 4)) void {
+        self.transform = new_transform;
+        self.nullifyTrueTransform();
+    }
+
+    fn nullifyTrueTransform(self: *Object) void {
+        self.true_transform = null;
+
+        if(self.first_child != null) {
+            self.first_child.?.nullifyTrueTransform();
+        }
+        if(self.next != null and self.next.? != self and self.next.? != self.parent.?.first_child.?) {
+            self.next.?.nullifyTrueTransform();
+        }
     }
 
     pub fn delete_(self: *Object, free_resources: bool) void {
@@ -295,6 +312,9 @@ pub const Object = struct {
 
     // Also deletes all children
     pub fn delete(self: *Object, free_resources: bool) void {
+        if(active_camera == self) {
+            active_camera = null;
+        }
 
         // Detatch from parent
 
@@ -544,13 +564,15 @@ pub const Object = struct {
                 .contrast = contrast,
                 .fragment_light_matrices = undefined,
                 .near_planes = [4]f32{ -1, -1, -1, -1 },
-                .far_planes = [4]f32{ -1, -1, -1, -1 }
+                .far_planes = [4]f32{ -1, -1, -1, -1 },
             };
 
             var fragment_light_shadow_textures: [4](?*const FrameBuffer) = [4](?*const FrameBuffer){ null, null, null, null };
             var fragment_light_shadow_cube_texture: [4](?*const CubeFrameBuffer) = [4](?*const CubeFrameBuffer){ null, null, null, null };
 
-            self.getLightData(self.mesh_renderer.?.*.max_vertex_lights, self.mesh_renderer.?.*.max_fragment_lights, &draw_data.light, &draw_data.vertex_light_indices, &draw_data.fragment_light_indices, &draw_data.fragment_light_matrices, &fragment_light_shadow_textures, &fragment_light_shadow_cube_texture, &draw_data.near_planes, &draw_data.far_planes);
+            self.getLightData(self.mesh_renderer.?.*.max_vertex_lights, self.mesh_renderer.?.*.max_fragment_lights, 
+                    &draw_data.light, &draw_data.vertex_light_indices, &draw_data.fragment_light_indices, &draw_data.fragment_light_matrices,
+                    &fragment_light_shadow_textures, &fragment_light_shadow_cube_texture, &draw_data.near_planes, &draw_data.far_planes);
 
             var i: u32 = 0;
             while (i < 4) : (i += 1) {
@@ -568,19 +590,23 @@ pub const Object = struct {
     }
 };
 
+var active_camera: ?*Object = null;
+var camera_position = Vector(f32, 3).init([3]f32{0,0,0});
+
+// camera direction = transform * (0,0,-1).
+pub fn setActiveCamera(camera: *Object) void {
+    active_camera = camera;
+}
+
 const PrePassError_ = error{PrePassError};
+
 
 // First iteration over all objects.
 // Calculates transformations in world space and gathers and generates light/shadow data ready for rendering
 // as well as finding the first active camera
-fn objectsPrePass(o: *Object, allocator: *Allocator, camera_object: *(?*Object), root_object: *Object) PrePassError_!void {
+fn objectsPrePass(o: *Object, allocator: *Allocator, root_object: *Object) PrePassError_!void {
     o.true_transform = null;
 
-    if (o.is_camera and camera_object.* == null) {
-        o.calculateTransform();
-
-        camera_object.* = o;
-    }
     if (o.light != null and lights_count < MAX_LIGHTS) {
         lights.?.append(o) catch return error.PrePassError;
 
@@ -609,10 +635,10 @@ fn objectsPrePass(o: *Object, allocator: *Allocator, camera_object: *(?*Object),
 
     // depth-first traversal
     if (o.first_child != null) {
-        try objectsPrePass(o.first_child.?, allocator, camera_object, root_object);
+        try objectsPrePass(o.first_child.?, allocator, root_object);
     }
     if (o.parent != null and o.next != null and o.next.? != o.parent.?.*.first_child) {
-        try objectsPrePass(o.next.?, allocator, camera_object, root_object);
+        try objectsPrePass(o.next.?, allocator, root_object);
     }
 }
 
@@ -663,6 +689,8 @@ pub fn deinit(allocator: *Allocator) void {
 
 pub fn render(root_object: *Object, micro_time: u64, allocator: *Allocator) !void {
     this_frame_time = micro_time;
+    lights_count = 0;
+    lights.?.resize(0) catch unreachable;
 
     var window_width: u32 = 0;
     var window_height: u32 = 0;
@@ -673,14 +701,21 @@ pub fn render(root_object: *Object, micro_time: u64, allocator: *Allocator) !voi
         return;
     }
 
+    if(active_camera == null) {
+        return;
+    }
+
+    active_camera.?.calculateTransform();
+    camera_position = active_camera.?.*.true_transform.?.position3D();
+
     wgi.enableDepthTesting();
     wgi.enableDepthWriting();
     window.setCullMode(window.CullMode.AntiClockwise);
 
-    var camera_object: ?*Object = null;
-    lights.?.resize(0) catch unreachable;
-    lights_count = 0;
-    try objectsPrePass(root_object, allocator, &camera_object, root_object);
+    try objectsPrePass(root_object, allocator, root_object);
+
+    // Calculate again because the prepass cleared it.
+    active_camera.?.calculateTransform();
 
     wgi.cullFace(wgi.CullFaceMode.Back);
 
@@ -689,21 +724,16 @@ pub fn render(root_object: *Object, micro_time: u64, allocator: *Allocator) !voi
 
     window.clear(true, true);
 
-    if (camera_object == null) {
-        return error.NoActiveCamera;
-    }
-
-    const x = camera_object.?.*.true_transform.?.position3D();
-    uniform_data.?.eye_position[0] = x.x();
-    uniform_data.?.eye_position[1] = x.y();
-    uniform_data.?.eye_position[2] = x.z();
+    uniform_data.?.eye_position[0] = camera_position.x();
+    uniform_data.?.eye_position[1] = camera_position.y();
+    uniform_data.?.eye_position[2] = camera_position.z();
     uniform_data.?.eye_position[3] = 1.0;
 
     const projection_matrix = Matrix(f32, 4).perspectiveProjectionOpenGLInverseZ(
         @intToFloat(f32, window_width) / @intToFloat(f32, window_height), (30.0 / 180.0) * 3.141159265, 0.01, 1000.0);        
     
 
-    var camera_transform_inverse = try camera_object.?.true_transform.?.inverse();
+    var camera_transform_inverse = try active_camera.?.true_transform.?.inverse();
 
     // The camera was orbiting about a point 1 unit in front of it
     // This hacky solution fixed the issue

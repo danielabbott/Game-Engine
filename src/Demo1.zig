@@ -151,7 +151,7 @@ pub fn main() !void {
 
     var camera: render.Object = render.Object.init("camera");
     try root_object.addChild(&camera);
-    camera.is_camera = true;
+    render.setActiveCamera(&camera);
 
     // Wait for game assets to finish loading
     // Keep calling pollEvents() to stop the window freezing
@@ -209,7 +209,7 @@ pub fn main() !void {
         // TODO This information should be moved into the scene file
         light.?.light.?.shadow_width = 54.0;
         light.?.light.?.shadow_height = 60.0;
-        light.?.light.?.shadow_resolution_width = 2048;
+        light.?.light.?.shadow_resolution_width = 1024*4;
     }
 
 
@@ -313,15 +313,16 @@ pub fn main() !void {
         // Rotate y
         // Rotate z
         // Translation
-        camera.transform = Matrix(f32, 4).rotateX(camera_rotation_euler[0]);
-        camera.transform = camera.transform.mul(Matrix(f32, 4).rotateY(camera_rotation_euler[1]));
-        camera.transform = camera.transform.mul(Matrix(f32, 4).rotateZ(camera_rotation_euler[2]));
-        camera.transform = camera.transform.mul(Matrix(f32, 4).translate(Vector(f32, 3).init(camera_position)));
+        var m = Matrix(f32, 4).rotateX(camera_rotation_euler[0]);
+        m = m.mul(Matrix(f32, 4).rotateY(camera_rotation_euler[1]));
+        m = m.mul(Matrix(f32, 4).rotateZ(camera_rotation_euler[2]));
+        m = m.mul(Matrix(f32, 4).translate(Vector(f32, 3).init(camera_position)));
+        camera.setTransform(m);
 
         // Use deltaTime to make rotation speed consistent, regardless of frame rate.
         rotation += deltaTime*0.1;
-        windmill_blades.?.transform = Matrix(f32, 4).rotateZ(rotation)
-            .mul(windmill_blades_default_transform);
+        windmill_blades.?.setTransform(Matrix(f32, 4).rotateZ(rotation)
+            .mul(windmill_blades_default_transform));
 
         try render.render(&root_object, micro_time, c_allocator);
 
