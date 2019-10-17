@@ -4,7 +4,7 @@ Tested with Zig 0.5.0
 
 Demo 1:
 ![Demo 1 Screenshot](https://raw.githubusercontent.com/danielabbott/Game-Engine/master/docs/screenshot.jpg)
-(Credits for farm assets is in the DemoAssets directory)
+(Credit for farm assets is in the DemoAssets directory)
 
 ### Modules
 
