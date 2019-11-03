@@ -272,11 +272,7 @@ pub const MeshRenderer = struct {
         light: [3]f32,
         vertex_light_indices: [8]i32,
         fragment_light_indices: [4]i32,
-        brightness: f32, 
-        contrast: f32,
-        fragment_light_matrices: [4]Matrix(f32, 4),
-        near_planes: [4]f32,
-        far_planes: [4]f32
+        fragment_light_matrices: [4]Matrix(f32, 4)
     };
 
     pub fn draw(self: *MeshRenderer, draw_data: DrawData, allocator: *std.mem.Allocator) !void {
@@ -304,11 +300,7 @@ pub const MeshRenderer = struct {
         try shader.setPerObjLight(draw_data.light);
         try shader.setVertexLightIndices(draw_data.vertex_light_indices);
         try shader.setFragmentLightIndices(draw_data.fragment_light_indices);
-        try shader.setBrightness(draw_data.brightness);
-        try shader.setContrast(draw_data.contrast);
         try shader.setLightMatrices(draw_data.fragment_light_matrices);
-        try shader.setNearPlanes(draw_data.near_planes);
-        try shader.setFarPlanes(draw_data.far_planes);
 
         if(self.mesh.?.model.attributes_bitmap & (1 << @enumToInt(ModelData.VertexAttributeType.BoneIndices)) != 0) {
             if(self.animation_object == null) {

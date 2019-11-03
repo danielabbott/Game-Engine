@@ -4,6 +4,7 @@ const assert = std.debug.assert;
 const c = @import("c.zig").c;
 const mem = std.mem;
 const builtin = @import("builtin");
+const wgi = @import("WindowGraphicsInput.zig");
 
 var maxVertexAttribs: u32 = 16;
 var maxTextureSize: u32 = 1024;
@@ -65,7 +66,7 @@ pub fn createWindow(fullscreen: bool, width: u32, height: u32, title: [*]const u
     }
 
     // OpenGL will automatically do gamma correction when writing to the main frame buffer
-    c.glfwWindowHint(c.GLFW_SRGB_CAPABLE, 1);
+    // c.glfwWindowHint(c.GLFW_SRGB_CAPABLE, 1);
 
     // Disable deprecated functionality
     c.glfwWindowHint(c.GLFW_OPENGL_FORWARD_COMPAT, 1);
@@ -110,16 +111,15 @@ pub fn createWindow(fullscreen: bool, width: u32, height: u32, title: [*]const u
         return error.ARBClipControlNotSupported;
     }
 
+    c.glEnable(c.GL_DEPTH_TEST);
     // Switch to optimal depth buffer configuration
-    c.glClipControl(c.GL_LOWER_LEFT, c.GL_ZERO_TO_ONE);
-    c.glClearDepth(0.0);
-    c.glDepthFunc(c.GL_GREATER);
+    wgi.setDepthModeDirectX();
 
     c.glViewport(0, 0, @intCast(c_int, width), @intCast(c_int, height));
     c.glClearColor(0.1, 0.1, 0.1, 1.0);
 
     // OpenGL will automatically do gamma correction when writing to the main frame buffer
-    c.glEnable(c.GL_FRAMEBUFFER_SRGB);
+    // c.glEnable(c.GL_FRAMEBUFFER_SRGB);
 
     if (msaa == 0) {
         c.glDisable(c.GL_MULTISAMPLE);
@@ -130,12 +130,6 @@ pub fn createWindow(fullscreen: bool, width: u32, height: u32, title: [*]const u
     if (builtin.mode == builtin.Mode.Debug and c.GL_ARB_debug_output != 0) {
         c.glEnable(c.GL_DEBUG_OUTPUT_SYNCHRONOUS_ARB);
         c.glDebugMessageCallbackARB(debug_callback, null);
-    }
-
-    if (disableDepthBuffer) {
-        c.glDisable(c.GL_DEPTH_TEST);
-    } else {
-        c.glEnable(c.GL_DEPTH_TEST);
     }
 
     c.glGetIntegerv(c.GL_MAX_TEXTURE_SIZE, @ptrCast([*c]c_int, &maxTextureSize));

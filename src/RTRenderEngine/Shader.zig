@@ -18,6 +18,9 @@ var standard_shader_vs_src: ?[]u8 = null;
 var standard_shader_fs_src: ?[]u8 = null;
 var standard_shader_common_src: ?[]u8 = null;
 
+// var square_depth_shader_fs_src: ?[]u8 = null;
+// var square_depth_fs: ?ShaderObject = null;
+
 // Appends src onto dst at the given offset into dst
 fn addString(src: []const u8, dst: []u8, offset: *u32) void {
     for (src[0..]) |b, i| dst[offset.* + i] = b;
@@ -58,8 +61,6 @@ pub const ShaderInstance = struct {
     fragment_light_indices_location: ?i32 = null,
     near_planes_location: ?i32 = null,
     far_planes_location: ?i32 = null,
-    brightness_location: ?i32 = null,
-    contrast_location: ?i32 = null,
     light_matrices_location: ?i32 = null,
     bone_matrices_location: ?i32 = null,
     specular_size_location: ?i32 = null,
@@ -310,8 +311,6 @@ pub const ShaderInstance = struct {
         self.fragment_light_indices_location = self.shader_program.getUniformLocation(c"fragment_lights") catch null;
         self.near_planes_location = self.shader_program.getUniformLocation(c"nearPlanes") catch null;
         self.far_planes_location = self.shader_program.getUniformLocation(c"farPlanes") catch null;
-        self.brightness_location = self.shader_program.getUniformLocation(c"brightness") catch null;
-        self.contrast_location = self.shader_program.getUniformLocation(c"contrast") catch null;
         self.specular_intensity_location = self.shader_program.getUniformLocation(c"specularIntensity") catch null;
         self.specular_size_location = self.shader_program.getUniformLocation(c"specularSize") catch null;
         self.specular_colouration_location = self.shader_program.getUniformLocation(c"specularColouration") catch null;
@@ -453,18 +452,6 @@ pub const ShaderInstance = struct {
         }
     }
 
-    pub fn setBrightness(self: ShaderInstance, c: f32) !void {
-        if (self.brightness_location != null) {
-            try self.shader_program.setUniform1f(self.brightness_location.?, c);
-        }
-    }
-
-    pub fn setContrast(self: ShaderInstance, c: f32) !void {
-        if (self.contrast_location != null) {
-            try self.shader_program.setUniform1f(self.contrast_location.?, c);
-        }
-    }
-
     pub fn setLightMatrices(self: ShaderInstance, matrices: [4]Matrix(f32, 4)) !void {
         if (self.light_matrices_location != null) {
             try self.shader_program.setUniformMat4(self.light_matrices_location.?, 4, @bitCast([64]f32, matrices)[0..]);
@@ -516,8 +503,6 @@ pub fn init(allocator: *std.mem.Allocator) !void {
     standard_shader_vs_src = try loadFileWithNullTerminator("StandardAssets" ++ files.path_seperator ++ "StandardShader.vs", allocator);
     standard_shader_fs_src = try loadFileWithNullTerminator("StandardAssets" ++ files.path_seperator ++ "StandardShader.fs", allocator);
     standard_shader_common_src = try loadFileWithNullTerminator("StandardAssets" ++ files.path_seperator ++ "StandardShader.glsl", allocator);
-
-
 
 }
 

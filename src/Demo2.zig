@@ -93,7 +93,7 @@ pub fn main() !void {
     try assets.startAssetLoader1(assets_list.toSlice(), c_allocator);
     defer assets.assetLoaderCleanup();
 
-    try window.createWindow(fullscreen, 1024, 768, c"Example application 2 - Minotaur", true, 0);
+    try window.createWindow(fullscreen, 1024, 768, c"Demo 2", true, 0);
     defer window.closeWindow();
     input.setKeyCallback(keyCallback);
     window.setResizeable(true);
@@ -106,7 +106,6 @@ pub fn main() !void {
     const settings = render.getSettings();
     settings.max_fragment_lights = 1;
     settings.max_vertex_lights = 0;
-    settings.post_process_enabled = true;
     settings.ambient[0] = 0.1;
     settings.ambient[1] = 0.1;
     settings.ambient[2] = 0.1;

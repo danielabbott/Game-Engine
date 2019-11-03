@@ -4,6 +4,9 @@ uniform sampler2D framebuffer;
 
 in vec2 pass_texture_coordinates;
 
+uniform float brightness = 1.0;
+uniform float contrast = 1.0;
+
 out vec3 out_colour;
 
 void main() {
@@ -30,14 +33,25 @@ void main() {
 
 	float lum_range = max_lum - min_lum;
 
+	vec3 colour;
+	float lum;
+
 	if(lum_range > 0.19) {
-		out_colour = (colours[0]+colours[1]+colours[2]+colours[3]+colours[4]) / 5.0;
+		colour = (colours[0]+colours[1]+colours[2]+colours[3]+colours[4]) / 5.0;
+		lum = dot(colour, luminanceMultipliers);
 
 		// Uncomment this line to highlight edges in red
-		// out_colour = vec3(1.0,0.0,0.0);
+		// colour = vec3(1.0,0.0,0.0);
 	}
 	else {
-		out_colour = colours[0];
+		colour = colours[0];
+		lum = lum0;
 	}
+
+	// Colour correction
+
+
+	float scale = brightness * pow(lum, contrast-1.0);
+	out_colour = pow(vec3(colour.rgb*scale), vec3(1.0/2.2));
 
 }

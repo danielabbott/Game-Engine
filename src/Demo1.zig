@@ -123,7 +123,7 @@ pub fn main() !void {
     try assets.startAssetLoader1(assets_list.toSlice(), c_allocator);
 
 
-    try window.createWindow(false, 1024, 768, c"test", true, 0);
+    try window.createWindow(false, 1024, 768, c"Demo 1", true, 0);
     defer window.closeWindow();
     window.setResizeable(true);
 
@@ -138,13 +138,13 @@ pub fn main() !void {
     defer render.deinit(c_allocator);
 
     const settings = render.getSettings();
-    settings.post_process_enabled = true;
     scenes.getAmbient(scene_file, &settings.*.ambient);
     scenes.getClearColour(scene_file, &settings.*.clear_colour);
     settings.enable_point_lights = false;
-    settings.enable_spot_lights = false;
-    settings.max_fragment_lights = 1;
+    settings.enable_spot_lights = true;
+    settings.max_fragment_lights = 2;
     settings.max_vertex_lights = 0;
+    settings.enable_specular_light = false;
 
     var root_object: render.Object = render.Object.init("root");
     defer root_object.delete(true);
@@ -152,6 +152,18 @@ pub fn main() !void {
     var camera: render.Object = render.Object.init("camera");
     try root_object.addChild(&camera);
     render.setActiveCamera(&camera);
+
+    var spotlight: render.Object = render.Object.init("light");
+    spotlight.light = render.Light{
+        .light_type = render.Light.LightType.Spotlight,
+        .colour = [3]f32{ 100, 100, 100 },
+        .attenuation = 1,
+        .cast_realtime_shadows = false,
+        .shadow_near = 0.1,
+        .shadow_far = 20.0,
+        .shadow_resolution_width = 256
+    };
+    try root_object.addChild(&spotlight);
 
     // Wait for game assets to finish loading
     // Keep calling pollEvents() to stop the window freezing
@@ -209,7 +221,7 @@ pub fn main() !void {
         // TODO This information should be moved into the scene file
         light.?.light.?.shadow_width = 54.0;
         light.?.light.?.shadow_height = 60.0;
-        light.?.light.?.shadow_resolution_width = 1024*4;
+        light.?.light.?.shadow_resolution_width = 1024;
     }
 
 
@@ -299,6 +311,13 @@ pub fn main() !void {
             moveNoUp(-1.875 * deltaTime * speed, 0.0, 0.0);
         }
 
+
+        var m = Matrix(f32, 4).rotateY(camera_rotation_euler[1]);
+        m = m.mul(Matrix(f32, 4).translate(Vector(f32, 3).init([3]f32
+            {camera_position[0], camera_position[1]-0.4, camera_position[2]}
+        )));
+        spotlight.setTransform(m);
+
         // Levitation (does not take camera rotation into account)
 
         if (input.isKeyDown(Constants.KEY_SPACE)) {
@@ -313,7 +332,7 @@ pub fn main() !void {
         // Rotate y
         // Rotate z
         // Translation
-        var m = Matrix(f32, 4).rotateX(camera_rotation_euler[0]);
+        m = Matrix(f32, 4).rotateX(camera_rotation_euler[0]);
         m = m.mul(Matrix(f32, 4).rotateY(camera_rotation_euler[1]));
         m = m.mul(Matrix(f32, 4).rotateZ(camera_rotation_euler[2]));
         m = m.mul(Matrix(f32, 4).translate(Vector(f32, 3).init(camera_position)));

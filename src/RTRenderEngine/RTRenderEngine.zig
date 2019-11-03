@@ -25,6 +25,9 @@ const assert = std.debug.assert;
 const warn = std.debug.warn;
 const Allocator = std.mem.Allocator;
 const ReferenceCounter = @import("../RefCount.zig").ReferenceCounter;
+const files = @import("../Files.zig");
+const loadFileWithNullTerminator = files.loadFileWithNullTerminator;
+const VertexMeta = wgi.VertexMeta;
 
 // Time value set at start of each frame
 var this_frame_time: u64 = 0;
@@ -39,10 +42,6 @@ pub const SettingsStruct = struct {
     enable_directional_lights: bool = true,
     enable_spot_lights: bool = true,
     enable_shadows: bool = true,
-
-    // Don't enable both MSAA (in window.create()) and post processing
-    // If post processing is being used then disable the depth buffer when creating the window to save vram
-    post_process_enabled: bool = false,
 
     ambient: [3]f32 = [3]f32{0.1,0.1,0.1},
 
@@ -69,6 +68,10 @@ pub fn getDefaultNormalMap() *const Tex2D {
     return &default_normal_map.?;
 }
 
+var blur_shader_vs_src: ?[]u8 = null;
+var blur_shader_fs_src: ?[]u8 = null;
+var blur_shader_program: ?ShaderProgram = null;
+
 var lights: ?ArrayList(*Object) = null;
 
 // Per-frame, inter-frame data stored in VRAM
@@ -93,7 +96,7 @@ pub const Light = struct {
     };
 
     light_type: LightType,
-    angle: f32 = 1.0,
+    angle: f32 = 0.9,
     colour: [3]f32,
     attenuation: f32 = 1.0, // how fast the light dissipates
     cast_realtime_shadows: bool = false,
@@ -101,9 +104,11 @@ pub const Light = struct {
     shadow_height: f32 = 20.0,
     shadow_near: f32 = 1.0,
     shadow_far: f32 = 50.0,
-    shadow_resolution_width: u32 = 2048,
+
+    // Must be multiple of 16
+    shadow_resolution_width: u32 = 512,
     // shadow_resolution_height is calculated using shadow_resolution_width and the aspect ratio
-    // of shadow_width and shadow_height
+    // of shadow_width and shadow_height, then rounded up to the nearest 16
 
     // internal variables
     lum: f32 = 0.0,
@@ -112,7 +117,7 @@ pub const Light = struct {
     light_pos: Vector(f32, 3) = Vector(f32, 3).init([3]f32{0,0,0}),
     uniform_array_index: u32 = 0,
     depth_framebuffer: ?FrameBuffer = null,
-    depth_cube_framebuffer: ?CubeFrameBuffer = null,
+    average_depth_framebuffer: ?FrameBuffer = null,
     light_matrix: Matrix(f32, 4) = Matrix(f32, 4).identity(),
 
     // Checks the mesh renderer variables and global settings to determine whether this light
@@ -137,7 +142,6 @@ pub const Light = struct {
             return;
         }
 
-        // TODO: Remove this when point light shadows are fixed
         if(self.light_type == LightType.Point) {
             self.cast_realtime_shadows = false;
             return;
@@ -147,87 +151,70 @@ pub const Light = struct {
         const pos = light_transform.*.position3D();
 
         // Create frame buffer object
+
+        var shadow_resolution_height = @floatToInt(u32, (@intToFloat(f32, self.shadow_resolution_width) * self.shadow_height) 
+                                            / self.shadow_width);
+
+        if(shadow_resolution_height % 16 != 0) {
+            shadow_resolution_height += 16 - (shadow_resolution_height % 16);
+        }
         
-        if (self.depth_framebuffer == null and self.light_type != LightType.Point) {
-            self.depth_framebuffer = FrameBuffer.init(null, self.shadow_resolution_width, 
-            @floatToInt(u32, (@intToFloat(f32, self.shadow_resolution_width) * self.shadow_height) / self.shadow_width), 
-            FrameBuffer.DepthType.I16) catch null;
+        if (self.depth_framebuffer == null) {
+            self.depth_framebuffer = FrameBuffer.init(null, self.shadow_resolution_width, shadow_resolution_height, FrameBuffer.DepthType.I16) catch null;
 
             if (self.depth_framebuffer == null) {
                 self.cast_realtime_shadows = false;
                 return;
             }
         }
-        else if (self.depth_cube_framebuffer == null and self.light_type == LightType.Point) {
-            self.depth_cube_framebuffer = CubeFrameBuffer.init(self.shadow_resolution_width, FrameBuffer.DepthType.I24) catch null;
 
-            if (self.depth_cube_framebuffer == null) {
+        if (self.average_depth_framebuffer == null) {
+            self.average_depth_framebuffer = FrameBuffer.init(ImageType.RG32F, self.shadow_resolution_width/16, shadow_resolution_height/16, FrameBuffer.DepthType.None) catch null;
+            
+            if (self.average_depth_framebuffer == null) {
                 self.cast_realtime_shadows = false;
                 return;
             }
+
+            try self.average_depth_framebuffer.?.setTextureFiltering(true, true);
         }
         
         var projection_matrix : ?Matrix(f32, 4) = null;
 
-        if(self.light_type == LightType.Directional or self.light_type == LightType.Spotlight) {
-            if(self.light_type == LightType.Directional) {
-                projection_matrix = Matrix(f32, 4).orthoProjectionOpenGLInverseZ(-self.shadow_width * 0.5, self.shadow_width * 0.5,
-                    -self.shadow_height * 0.5, self.shadow_height * 0.5, 
-                    self.shadow_near, self.shadow_far);
-            }
-            else {
-                projection_matrix = Matrix(f32, 4).perspectiveProjectionOpenGLInverseZ(self.shadow_width / self.shadow_height,
-                self.angle, self.shadow_near, self.shadow_far);
-            }
-
-            var view_matrix = try light_transform.*.inverse();
-            view_matrix.data[3][2] += 1.0;
-
-            self.light_matrix = view_matrix.mul(projection_matrix.?);
-
-            try self.depth_framebuffer.?.bind();
-            window.clear(false, true);
-            wgi.cullFace(wgi.CullFaceMode.Front);
-            try renderObjects(root_object, allocator, &view_matrix, &projection_matrix.?, true);
+        if(self.light_type == LightType.Directional) {
+            projection_matrix = Matrix(f32, 4).orthoProjectionOpenGLInverseZ(-self.shadow_width * 0.5, self.shadow_width * 0.5,
+                -self.shadow_height * 0.5, self.shadow_height * 0.5, 
+                self.shadow_near, self.shadow_far);
         }
         else {
-            // wgi.cullFace(wgi.CullFaceMode.Front);
-
-            const pi = 3.14159265;
-
-            const directions = [6]([3]f32) {
-                [3]f32{0.0,pi*0.5,0.0},
-                [3]f32{0.0,-pi*0.5,0.0},
-
-                [3]f32{pi*0.5,0.0,0.0},
-                [3]f32{-pi*0.5,0.0,0.0},
-
-                [3]f32{0.0,pi,0.0},
-                [3]f32{0.0,0.0,0.0},
-            };
-
-            var i: u32 = 0;
-            while(i < 6) : (i += 1) {
-                projection_matrix = Matrix(f32, 4).perspectiveProjectionOpenGLInverseZ(1.0,
-                pi*0.5, self.shadow_near, self.shadow_far);
-
-
-                var negPos = light_transform.*.position3D();
-                negPos.data[0] = -negPos.data[0];
-                negPos.data[1] = -negPos.data[1];
-                negPos.data[2] = -negPos.data[2];
-                var view_matrix = Matrix(f32, 4).translate(negPos);
-                view_matrix = view_matrix.mul(Matrix(f32, 4).rotateZ(directions[i][2]));
-                view_matrix = view_matrix.mul(Matrix(f32, 4).rotateY(directions[i][1]));
-                view_matrix = view_matrix.mul(Matrix(f32, 4).rotateX(directions[i][0]));
-                view_matrix.data[3][2] += 1.0;
-
-                try self.depth_cube_framebuffer.?.bind(@intToEnum(CubeFrameBuffer.Direction, i));
-                window.clear(false, true);
-                try renderObjects(root_object, allocator, &view_matrix, &projection_matrix.?, true);
-            }
+            const angle = std.math.acos(self.angle) * 2.0;
+            projection_matrix = Matrix(f32, 4).perspectiveProjectionOpenGLInverseZ(self.shadow_width / self.shadow_height,
+                angle, self.shadow_near, self.shadow_far);
         }
-        
+
+        var view_matrix = try light_transform.*.inverse();
+        view_matrix.data[3][2] += 1.0;
+
+        self.light_matrix = view_matrix.mul(projection_matrix.?);
+
+        try self.depth_framebuffer.?.bind();
+        window.setCullMode(window.CullMode.AntiClockwise);
+        wgi.cullFace(wgi.CullFaceMode.Back);
+        wgi.enableDepthWriting();
+        wgi.setDepthModeDirectX();
+        window.clear(false, true);
+
+        try renderObjects(root_object, allocator, &view_matrix, &projection_matrix.?, true);
+
+        // Shadow map is now in depth_framebuffer
+        // Now blur it
+        window.setCullMode(window.CullMode.None);
+        wgi.disableDepthTesting();
+        wgi.disableDepthWriting();
+        try blur_shader_program.?.bind();
+        try self.average_depth_framebuffer.?.bind();
+        try self.depth_framebuffer.?.bindDepthTexture();
+        try VertexMeta.drawWithoutData(VertexMeta.PrimitiveType.Triangles, 0, 3);
     }
 };
 
@@ -435,7 +422,7 @@ pub const Object = struct {
         assert(self.true_transform != null);
     }
 
-    fn getLightData(self: *Object, max_vertex_lights: u32, max_fragment_lights: u32, per_obj_light: *([3]f32), vertex_light_indices: *([8]i32), fragment_light_indices: *([4]i32), fragment_light_matrices: *([4]Matrix(f32, 4)), fragment_light_shadow_textures: *([4](?*const FrameBuffer)), fragment_light_shadow_cube_textures: *([4](?*const CubeFrameBuffer)), near_planes: *([4]f32), far_planes: *([4]f32)) void {
+    fn getLightData(self: *Object, max_vertex_lights: u32, max_fragment_lights: u32, per_obj_light: *([3]f32), vertex_light_indices: *([8]i32), fragment_light_indices: *([4]i32), fragment_light_matrices: *([4]Matrix(f32, 4)), fragment_light_shadow_textures: *([4](?*const FrameBuffer))) void {
         if (lights.?.len == 0) {
             return;
         }
@@ -494,16 +481,10 @@ pub const Object = struct {
                 fragment_light_indices[j] = @intCast(i32, lights_slice[i].*.light.?.uniform_array_index);
 
                 if (lights_slice[i].*.light.?.cast_realtime_shadows and getSettings().enable_shadows) {
-                    if(lights_slice[i].*.light.?.light_type == Light.LightType.Point){
-                        fragment_light_shadow_cube_textures[j] = &lights_slice[i].*.light.?.depth_cube_framebuffer.?;                            
-                    }
-                    else {
+                    if(lights_slice[i].*.light.?.light_type != Light.LightType.Point){                           
                         fragment_light_matrices[j] = lights_slice[i].*.light.?.light_matrix;
-                        fragment_light_shadow_textures[j] = &lights_slice[i].*.light.?.depth_framebuffer.?;
+                        fragment_light_shadow_textures[j] = &lights_slice[i].*.light.?.average_depth_framebuffer.?;
                     }
-
-                    near_planes[j] = lights_slice[i].*.light.?.shadow_near;
-                    far_planes[j] = lights_slice[i].*.light.?.shadow_far;
                 }
 
                 j += 1;
@@ -560,27 +541,22 @@ pub const Object = struct {
                 .light = getSettings().ambient,
                 .vertex_light_indices = [8]i32{ -1, -1, -1, -1, -1, -1, -1, -1 },
                 .fragment_light_indices = [4]i32{ -1, -1, -1, -1 },
-                .brightness = brightness,
-                .contrast = contrast,
-                .fragment_light_matrices = undefined,
-                .near_planes = [4]f32{ -1, -1, -1, -1 },
-                .far_planes = [4]f32{ -1, -1, -1, -1 },
+                .fragment_light_matrices = undefined
             };
 
             var fragment_light_shadow_textures: [4](?*const FrameBuffer) = [4](?*const FrameBuffer){ null, null, null, null };
-            var fragment_light_shadow_cube_texture: [4](?*const CubeFrameBuffer) = [4](?*const CubeFrameBuffer){ null, null, null, null };
 
             self.getLightData(self.mesh_renderer.?.*.max_vertex_lights, self.mesh_renderer.?.*.max_fragment_lights, 
                     &draw_data.light, &draw_data.vertex_light_indices, &draw_data.fragment_light_indices, &draw_data.fragment_light_matrices,
-                    &fragment_light_shadow_textures, &fragment_light_shadow_cube_texture, &draw_data.near_planes, &draw_data.far_planes);
+                    &fragment_light_shadow_textures);
 
             var i: u32 = 0;
             while (i < 4) : (i += 1) {
                 if (fragment_light_shadow_textures[i] != null) {
-                    fragment_light_shadow_textures[i].?.bindDepthTextureToUnit(2 + i) catch {};
+                    fragment_light_shadow_textures[i].?.bindTextureToUnit(2 + i) catch {};
                 }
-                else if (fragment_light_shadow_cube_texture[i] != null) {
-                    fragment_light_shadow_cube_texture[i].?.bindDepthTextureToUnit(6 + i) catch {};
+                else {
+                    wgi.Texture2D.unbind(2 + i);
                 }
             }
 
@@ -618,6 +594,14 @@ fn objectsPrePass(o: *Object, allocator: *Allocator, root_object: *Object) PrePa
             [4]f32{ 0.0, 0.0, -1.0, 0.0 },
         ).mulMat(o.true_transform.?);
         rot.normalise();
+
+        if(l.light_type == Light.LightType.Directional) {
+            rot.data[0] = -rot.data[0];
+            rot.data[1] = -rot.data[1];
+            rot.data[2] = -rot.data[2];
+        }
+
+
         l.uniform_array_index = lights_count;
         var type_ = @enumToInt(l.light_type)*2+1;
         if (l.cast_realtime_shadows) {
@@ -625,7 +609,7 @@ fn objectsPrePass(o: *Object, allocator: *Allocator, root_object: *Object) PrePa
         }
         uniform_data.?.lights[lights_count] = UniformDataLight{
             .positionAndType = [4]f32{ l.light_pos.data[0], l.light_pos.data[1], l.light_pos.data[2], @intToFloat(f32, type_) },
-            .directionAndAngle = [4]f32{ -rot.data[0], -rot.data[1], -rot.data[2], l.angle },
+            .directionAndAngle = [4]f32{ rot.data[0], rot.data[1], rot.data[2], l.angle },
             .intensity = [4]f32{ l.colour[0], l.colour[1], l.colour[2], l.attenuation },
         };
 
@@ -655,6 +639,17 @@ fn renderObjects(o: *Object, allocator: *Allocator, view_matrix: *const Matrix(f
     }
 }
 
+fn loadBlurShader(allocator: *Allocator) !void {
+    blur_shader_vs_src = try loadFileWithNullTerminator("StandardAssets" ++ files.path_seperator ++ "Blur.vs", allocator);
+    blur_shader_fs_src = try loadFileWithNullTerminator("StandardAssets" ++ files.path_seperator ++ "Blur.fs", allocator);
+
+    var blur_vs: ShaderObject = try ShaderObject.init(([_]([]const u8){blur_shader_vs_src.?})[0..], ShaderType.Vertex, allocator);
+    var blur_fs: ShaderObject = try ShaderObject.init(([_]([]const u8){blur_shader_fs_src.?})[0..], ShaderType.Fragment, allocator);
+    blur_shader_program = try ShaderProgram.init(&blur_vs, &blur_fs, [0][]const u8{}, allocator);
+
+    try blur_shader_program.?.setUniform1i(try blur_shader_program.?.getUniformLocation(c"textureSrc"), 0);
+}
+
 // Allocator is for temporary allocations (printing shader error logs, temporary arrays, etc.) and permenant allocations (shader source files).
 // ^ Best to use c_alloc
 // Allocator must remain valid until deinit has been  called
@@ -662,6 +657,8 @@ pub fn init(time: u64, allocator: *Allocator) !void {
     settings = SettingsStruct{};
     this_frame_time = time;
     try PostProcess.loadSourceFiles(allocator);
+
+    try loadBlurShader(allocator);
 
     try shdr.init(allocator);
 
@@ -705,11 +702,10 @@ pub fn render(root_object: *Object, micro_time: u64, allocator: *Allocator) !voi
         return;
     }
 
+
     active_camera.?.calculateTransform();
     camera_position = active_camera.?.*.true_transform.?.position3D();
 
-    wgi.enableDepthTesting();
-    wgi.enableDepthWriting();
     window.setCullMode(window.CullMode.AntiClockwise);
 
     try objectsPrePass(root_object, allocator, root_object);
@@ -720,9 +716,8 @@ pub fn render(root_object: *Object, micro_time: u64, allocator: *Allocator) !voi
     wgi.cullFace(wgi.CullFaceMode.Back);
 
     // If the window has no depth buffer then post processing must be enabled
-    try PostProcess.startFrame(getSettings().post_process_enabled or window.windowWasCreatedWithoutDepthBuffer(), window_width, window_height, allocator);
+    try PostProcess.startFrame(window_width, window_height, allocator);
 
-    window.clear(true, true);
 
     uniform_data.?.eye_position[0] = camera_position.x();
     uniform_data.?.eye_position[1] = camera_position.y();
@@ -747,14 +742,19 @@ pub fn render(root_object: *Object, micro_time: u64, allocator: *Allocator) !voi
         try uniform_buffer.?.bindBufferBase(1);
     }
 
+    wgi.setDepthModeDirectX();
+    wgi.enableDepthWriting();
+    window.setCullMode(window.CullMode.AntiClockwise);
     window.setClearColour(getSettings().clear_colour[0], getSettings().clear_colour[1], getSettings().clear_colour[2], 1.0);
+    window.clear(true, true);
 
     try renderObjects(root_object, allocator, &camera_transform_inverse, &projection_matrix, false);
 
     try PostProcess.endFrame(
-        getSettings().post_process_enabled or window.windowWasCreatedWithoutDepthBuffer(),
         window_width,
         window_height,
+        brightness,
+        contrast
     );
 }
 

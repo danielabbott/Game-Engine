@@ -27,12 +27,8 @@ pub fn getGraphicsAPI() GraphicsAPI {
     return GraphicsAPI.OpenGL33;
 }
 
-pub fn enableDepthTesting() void {
-    c.glEnable(c.GL_DEPTH_TEST);
-}
-
 pub fn disableDepthTesting() void {
-    c.glDisable(c.GL_DEPTH_TEST);
+    c.glDepthFunc(c.GL_ALWAYS);
 }
 
 pub fn enableDepthWriting() void {
@@ -40,6 +36,20 @@ pub fn enableDepthWriting() void {
 }
 pub fn disableDepthWriting() void {
     c.glDepthMask (c.GL_FALSE);
+}
+
+// setDepthMode functions enable depth testing
+
+pub fn setDepthModeDirectX() void {
+    c.glClipControl(c.GL_LOWER_LEFT, c.GL_ZERO_TO_ONE);
+    c.glClearDepth(0.0);
+    c.glDepthFunc(c.GL_GREATER);
+}
+
+pub fn setDepthModeOpenGL() void {
+    c.glClipControl(c.GL_LOWER_LEFT, c.GL_NEGATIVE_ONE_TO_ONE);
+    c.glClearDepth(1.0);
+    c.glDepthFunc(c.GL_LESS);
 }
 
 pub const CullFaceMode = enum(u32) {

@@ -37,13 +37,20 @@ uniform mat4 model_matrix;
 	uniform mat4 lightMatrices[4]; // light_ortho * light_view
 #endif
 
-#if MAX_FRAGMENT_LIGHTS > 0 && defined(ENABLE_SHADOWS)
+#if MAX_FRAGMENT_LIGHTS > 0
 	#if MAX_FRAGMENT_LIGHTS == 1
 		#define SHADOW_COORDS_PASS_VAR_TYPE vec4
 		#define GET_SHADOW_COORDS(i) shadowDepthMapCoordinates
 	#else
-		#define SHADOW_COORDS_PASS_VAR_TYPE mat4x##MAX_FRAGMENT_LIGHTS
 		#define GET_SHADOW_COORDS(i) shadowDepthMapCoordinates[i]
+		
+		#if MAX_FRAGMENT_LIGHTS == 2
+			#define SHADOW_COORDS_PASS_VAR_TYPE mat2x4
+		#elif MAX_FRAGMENT_LIGHTS == 3
+			#define SHADOW_COORDS_PASS_VAR_TYPE mat3x4
+		#else
+			#define SHADOW_COORDS_PASS_VAR_TYPE mat4x4
+		#endif
 	#endif
 #endif
 
@@ -100,16 +107,6 @@ uniform mat4 model_matrix;
 		uniform sampler2D shadowTexture2; // texture unit 4
 		uniform sampler2D shadowTexture3; // texture unit 5
 
-		#ifdef ENABLE_POINT_LIGHTS
-			uniform samplerCube shadowCubeTexture0; // texture unit 6
-			uniform samplerCube shadowCubeTexture1; // texture unit 7
-			uniform samplerCube shadowCubeTexture2; // texture unit 8
-			uniform samplerCube shadowCubeTexture3; // texture unit 9
-
-			uniform float nearPlanes[4];
-			uniform float farPlanes[4];
-		#endif
-
 		in SHADOW_COORDS_PASS_VAR_TYPE shadowDepthMapCoordinates;
 	#endif
 	// prevLight: Result from previous lighting stage
@@ -124,32 +121,25 @@ uniform mat4 model_matrix;
 	#endif
 
 	#if defined(ENABLE_SHADOWS) && (defined(ENABLE_DIRECTIONAL_LIGHTS) || defined(ENABLE_SPOT_LIGHTS)) && defined(FRAGMENT_SHADER)
-		float doShadow(int i, bool perspective) {
-			vec3 lightMapCoords;
-			vec3 lightMapCoords01;
-			
+		float doShadow(int i) {			
 			vec4 lightMapCoordsxyzw = GET_SHADOW_COORDS(i);
 			lightMapCoordsxyzw.xyz /= lightMapCoordsxyzw.w;
-			lightMapCoords = lightMapCoordsxyzw.xyz;
-			lightMapCoords01 = lightMapCoords*0.5+0.5;
+			vec3 lightMapCoords = lightMapCoordsxyzw.xyz;
+			vec3 lightMapCoords01 = lightMapCoords*0.5+0.5;
 			
 
-			if(any( greaterThan(abs(lightMapCoords.xy), vec2(1.0)) )) {
+			if(any( greaterThan(abs(lightMapCoords.xy), vec2(0.97)) )) {
 				return 1.0;
 			}
 
-			ivec2 shadowMapSize;
-			vec2 a = 1.0 / shadowMapSize;
-			float shadowValueCentre;
+			vec2 texVals;
 
 			#if MAX_FRAGMENT_LIGHTS == 1
-				shadowMapSize = textureSize(shadowTexture0, 0);
-				shadowValueCentre = texture(shadowTexture0, lightMapCoords01.xy).r;
+				texVals = texture(shadowTexture0, lightMapCoords01.xy).rg;
 			#else
 				#define TEX(II) \
 					if(i == II) { \
-						shadowMapSize = textureSize(shadowTexture##II, 0); \
-						shadowValueCentre = texture(shadowTexture##II, lightMapCoords01.xy).r; \
+						texVals = texture(shadowTexture##II, lightMapCoords01.xy).rg; \
 					}
 
 				TEX(0)
@@ -165,73 +155,33 @@ uniform mat4 model_matrix;
 				#undef TEX
 			#endif
 
-			const float shadowGap = 0.00001;
+			float ex = texVals.r;
+			float ex2 = texVals.g;
 
-			if(shadowValueCentre == 0) {
+			if(ex == 0.0) {
 				return 1.0;
-			}
+			}	
 
-			if(shadowValueCentre-lightMapCoords.z > shadowGap) {
-				// In shadow
-				
-				vec4 shadowValuesSides;
-				vec4 shadowValuesCorners;
+			float t = lightMapCoords.z;
 
-				#if MAX_FRAGMENT_LIGHTS == 1
-					shadowValuesSides = vec4(textureOffset(shadowTexture0, lightMapCoords01.xy, ivec2(2, 0)).r,
-					textureOffset(shadowTexture0, lightMapCoords01.xy, ivec2(-2, 0)).r,
-					textureOffset(shadowTexture0, lightMapCoords01.xy, ivec2(0, 2)).r,
-					textureOffset(shadowTexture0, lightMapCoords01.xy, ivec2(0, -2)).r);
-					
-					shadowValuesCorners = vec4(textureOffset(shadowTexture0, lightMapCoords01.xy, ivec2(1, 1)).r,
-					textureOffset(shadowTexture0, lightMapCoords01.xy, ivec2(-1, -1)).r,
-					textureOffset(shadowTexture0, lightMapCoords01.xy, ivec2(+1, -1)).r,
-					textureOffset(shadowTexture0, lightMapCoords01.xy, ivec2(-1, 1)).r);
-				#else
-					#define TEX(II) \
-						if(i == II) { \
-							shadowValuesSides = vec4(textureOffset(shadowTexture##II, lightMapCoords01.xy, ivec2(2, 0)).r, \
-							textureOffset(shadowTexture##II, lightMapCoords01.xy, ivec2(-2, 0)).r, \
-							textureOffset(shadowTexture##II, lightMapCoords01.xy, ivec2(0, 2)).r, \
-							textureOffset(shadowTexture##II, lightMapCoords01.xy, ivec2(0, -2)).r); \
-							\
-							shadowValuesCorners = vec4(textureOffset(shadowTexture##II, lightMapCoords01.xy, ivec2(1, 1)).r, \
-							textureOffset(shadowTexture##II, lightMapCoords01.xy, ivec2(-1, -1)).r, \
-							textureOffset(shadowTexture##II, lightMapCoords01.xy, ivec2(+1, -1)).r,\
-							textureOffset(shadowTexture##II, lightMapCoords01.xy, ivec2(-1, 1)).r); \
-						}
+			if(t <= ex) {
+				// Potentially in shadow				
 
-					TEX(0)
-					TEX(1)
-					TEX(2)
-					TEX(3)
-					#undef TEX
-				#endif
+				float variance2 = ex2 - ex*ex;
+				variance2 = max(0.000001, variance2);
 
+				// Probability that this fragment is in shadow
+				float d = t - ex;
+				float x = variance2 / (variance2 + d*d);
 
-				// for(int i = 0; i < 4; i++) {
-				// 	if(shadowValuesSides[i]-lightMapCoords.z < shadowGap) {
-				// 		// If not in shadow
-				// 		light += 0.15;
-				// 	}
-				// 	if(shadowValuesCorners[i]-lightMapCoords.z < shadowGap) {
-				// 		light += 0.07;
-				// 	}
-				// }
+				// TODO make shadows darker near the obstructor if possible
 
-				// These 3 lines are equivilent to the pseudocode above
-				vec4 values1 = max(vec4(0.0), -sign(shadowValuesSides - vec4(lightMapCoords.z+shadowGap))) * vec4(0.15);
-				vec4 values2 = max(vec4(0.0), -sign(shadowValuesCorners - vec4(lightMapCoords.z+shadowGap))) * vec4(0.07);
+				x = 1.11*pow(10.0, -16.0) + 1.5*x - 1.6*x*x + 1.07*x*x*x;
 
-				// 0 = full shadow, 1.0 = not shadow
-				float light = dot(values1, vec4(1.0)) + dot(values2, vec4(1.0));
-
-				light = 1.0 - ((1.0-light)*(1.0-light));
-
-				return 0.2 + smoothstep(0.0, 1.0, clamp(light, 0.0, 1.0)) * 0.8;
+				return smoothstep(0.0, 1.0, clamp(x, 0.0, 1.0));
 			}
 			else {
-				// Not in shadow
+				// Fully lit
 				return 1.0;
 			}
 		}
@@ -264,33 +214,6 @@ uniform mat4 model_matrix;
 				vec3 objectToLight = light.positionAndType.xyz - positionWorldSpace;
 				float dist = length(objectToLight);
 
-				float shadowValue = 1.0;
-
-				#if defined(ENABLE_SHADOWS) && defined(FRAGMENT_SHADER)
-					if(light.positionAndType.w == LIGHT_TYPE_POINT_WITH_SHADOWS) {
-						float shadowSample;
-						float actualDepth;
-						vec3 v = -objectToLight;
-						
-						#define TEX(II) \
-							if(i == II) { \
-								shadowSample = texture(shadowCubeTexture##II, v).r; \
-							}
-
-						TEX(0)
-						TEX(1)
-						TEX(2)
-						TEX(3)
-						#undef TEX
-
-						actualDepth = (dist - nearPlanes[i]) / farPlanes[i];
-
-						if(shadowSample > actualDepth) {
-							shadowValue = 0.0;
-						}
-					}
-				#endif
-
 				float lightIntensity = clamp(dot(normalize(objectToLight), normal), 0, 1);
 
 				float l = dist * light.intensity.w;
@@ -300,11 +223,9 @@ uniform mat4 model_matrix;
 				
 				lightIntensity /= lenSqrd;
 
-				c += lightIntensity * light.intensity.rgb * shadowValue;
+				c += lightIntensity * light.intensity.rgb;
 				#ifdef ENABLE_SPECULAR
-				if(shadowValue == 1.0) {
 					specular(normal, positionWorldSpace, normalize(objectToLight), light.intensity.xyz, c);
-				}
 				#endif
 			#ifndef ONLY_ONE_LIGHT_TYPE
 			}
@@ -325,7 +246,7 @@ uniform mat4 model_matrix;
 				#if defined(ENABLE_SHADOWS) && defined(FRAGMENT_SHADER)
 					float shadowEffect = 1.0;
 					if(lightIntensity > 0.0) {
-						shadowEffect = doShadow(i, false);
+						shadowEffect = doShadow(i);
 					}
 					c += lightIntensity * light.intensity.xyz * shadowEffect;
 				#else
@@ -334,7 +255,7 @@ uniform mat4 model_matrix;
 
 				#ifdef ENABLE_SPECULAR
 					specular(normal, positionWorldSpace, light.directionAndAngle.xyz, light.intensity.xyz, c);
-				#endif			
+				#endif
 		#ifndef ONLY_ONE_LIGHT_TYPE
 			}
 		#endif
@@ -351,15 +272,15 @@ uniform mat4 model_matrix;
 			vec3 lightToObjectN = normalize(lightToObject);
 
 			// cosine of angle
-			float angle = dot(lightToObjectN, -light.directionAndAngle.xyz);
-
-			if(angle > 0 && angle > light.directionAndAngle.w) {			
+			float angle = dot(lightToObjectN, light.directionAndAngle.xyz);
+	
+			if(angle > 0 && angle > light.directionAndAngle.w) {	
 				float lightIntensity = clamp(dot(-lightToObjectN, normal), 0, 1);
 
 				#if defined(ENABLE_SHADOWS) && defined(FRAGMENT_SHADER)
 					float shadowEffect = 1.0;
 					if(light.positionAndType.w == LIGHT_TYPE_SPOTLIGHT_WITH_SHADOWS && lightIntensity > 0.0) {
-						shadowEffect = doShadow(i, true);
+						shadowEffect = doShadow(i);
 					}
 				#else
 					const float shadowEffect = 1.0;

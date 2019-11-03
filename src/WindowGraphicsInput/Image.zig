@@ -8,7 +8,7 @@ const expect = std.testing.expect;
 const ReferenceCounter = @import("../RefCount.zig").ReferenceCounter;
 
 // Base internal formats
-pub const image_type_base_internal_formats: [9]u32 = [9]u32{
+pub const image_type_base_internal_formats = [_]u32{
     c.GL_RED,
     c.GL_RG,
     c.GL_RGB,
@@ -18,9 +18,15 @@ pub const image_type_base_internal_formats: [9]u32 = [9]u32{
     c.GL_DEPTH_COMPONENT,
     c.GL_DEPTH_COMPONENT,
     c.GL_DEPTH_COMPONENT,
+    c.GL_RED,
+    c.GL_RG,
+    c.GL_RGB,
+    c.GL_RGBA,
+    c.GL_RGB,
+    c.GL_RGB,
 };
 
-pub const image_type_sized_internal_formats: [9]u32 = [9]u32{
+pub const image_type_sized_internal_formats = [_]u32{
     c.GL_R8,
     c.GL_RG8,
     c.GL_RGB8,
@@ -30,6 +36,12 @@ pub const image_type_sized_internal_formats: [9]u32 = [9]u32{
     c.GL_DEPTH_COMPONENT24,
     c.GL_DEPTH_COMPONENT32,
     c.GL_DEPTH_COMPONENT32F,
+    c.GL_R32F,
+    c.GL_RG32F,
+    c.GL_RGB32F,
+    c.GL_RGBA32F,
+    c.GL_RGB16F,
+    c.GL_R11F_G11F_B10F,
 };
 
 pub const ImageType = enum {
@@ -42,6 +54,12 @@ pub const ImageType = enum {
     Depth24,
     Depth32,
     Depth32F,
+    R32F,
+    RG32F,
+    RGB32F,
+    RGBA32F,
+    RGB16F,
+    RG11FB10F,
 };
 
 const min_filter_gl_values = [_]i32 {
@@ -69,7 +87,14 @@ pub const MinFilter = enum(i32) {
 
 pub fn imageDataSize(w: usize, h: usize, imgType: ImageType) usize {
     var expectedDataSize: usize = 0;
-    if (imgType == ImageType.RGBA or imgType == ImageType.Depth32 or imgType == ImageType.Depth32F or imgType == ImageType.RGB10A2) {
+    if (imgType == ImageType.RGBA32F) {
+        expectedDataSize = w * h * 16;
+    } else if (imgType == ImageType.RGB32F) {
+        expectedDataSize = w * h * 12;
+    } else if (imgType == ImageType.RG32F) {
+        expectedDataSize = w * h * 8;
+    } else if (imgType == ImageType.RGBA or imgType == ImageType.Depth32 or imgType == ImageType.Depth32F 
+        or imgType == ImageType.RGB10A2 or imgType == ImageType.R32F) {
         expectedDataSize = w * h * 4;
     } else if (imgType == ImageType.RGB or imgType == ImageType.Depth24) {
         expectedDataSize = w * h * 3;
@@ -143,7 +168,11 @@ pub const Texture2D = struct {
         };
     }
 
-    pub fn setFiltering(self: *Texture2D, smooth_when_magnified: bool, min_filter: MinFilter) !Texture2D {
+    pub fn setFiltering(self: *Texture2D, smooth_when_magnified: bool, min_filter: MinFilter) !void {
+        if (self.id == 0) {
+            assert(false);
+            return error.InvalidState;
+        }
         setTextureFiltering(self.id, c.GL_TEXTURE_2D, smooth_when_magnified, min_filter);
     }
 
@@ -174,6 +203,15 @@ pub const Texture2D = struct {
 
     pub fn bind(self: Texture2D) !void {
         try self.bindToUnit(0);
+    }
+
+    pub fn unbind(unit: u32) void {
+        if (unit >= window.maximumNumTextureImageUnits()) {
+            return;
+        }
+
+        c.glActiveTexture(c.GL_TEXTURE0 + unit);
+        c.glBindTexture(c.GL_TEXTURE_2D, 0);
     }
 
     // If data is null then texture data will be uninitialised

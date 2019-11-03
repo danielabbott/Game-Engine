@@ -2,6 +2,7 @@ const std = @import("std");
 const assert = std.debug.assert;
 const img = @import("Image.zig");
 const ImageType = img.ImageType;
+const MinFilter = img.MinFilter;
 const Texture2D = img.Texture2D;
 const window = @import("Window.zig");
 const c = @import("c.zig").c;
@@ -103,6 +104,16 @@ pub const FrameBuffer = struct {
         c.glBindFramebuffer(c.GL_FRAMEBUFFER, 0);
 
         return frameBuffer;
+    }
+
+    pub fn setTextureFiltering(self: *FrameBuffer, min_blur: bool, mag_blur: bool) !void {
+        try self.bindTexture();
+        if(min_blur) {
+            try self.texture.?.setFiltering(mag_blur, MinFilter.Linear);
+        }
+        else {
+            try self.texture.?.setFiltering(mag_blur, MinFilter.Nearest);
+        }
     }
 
     // Bind for drawing

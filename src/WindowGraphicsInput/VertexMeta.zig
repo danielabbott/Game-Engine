@@ -5,6 +5,8 @@ const window = @import("Window.zig");
 const c = @import("c.zig").c;
 const ReferenceCounter = @import("../RefCount.zig").ReferenceCounter;
 
+var null_vao: ?VertexMeta = null;
+
 pub const VertexMeta = struct {
     ref_count: ReferenceCounter = ReferenceCounter{},
 
@@ -178,6 +180,21 @@ pub const VertexMeta = struct {
             return error.InvalidParameter;
         }
         try self.bind();
+        c.glDrawArrays(primitive_type_gl[@enumToInt(mode)], @intCast(c_int, first), @intCast(c_int, count));
+    }
+
+    pub fn drawWithoutData(mode: PrimitiveType, first: u32, count: u32) !void {
+        if (count == 0) {
+            assert(false);
+            return error.InvalidParameter;
+        }
+
+
+        if(null_vao == null) {
+            null_vao = try VertexMeta.init([_]VertexInput {}, null);
+        }
+        try null_vao.?.bind();
+
         c.glDrawArrays(primitive_type_gl[@enumToInt(mode)], @intCast(c_int, first), @intCast(c_int, count));
     }
 
