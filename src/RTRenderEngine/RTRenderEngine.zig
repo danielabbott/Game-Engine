@@ -725,7 +725,7 @@ pub fn render(root_object: *Object, micro_time: u64, allocator: *Allocator) !voi
     uniform_data.?.eye_position[3] = 1.0;
 
     const projection_matrix = Matrix(f32, 4).perspectiveProjectionOpenGLInverseZ(
-        @intToFloat(f32, window_width) / @intToFloat(f32, window_height), (30.0 / 180.0) * 3.141159265, 0.01, 1000.0);        
+        @intToFloat(f32, window_width) / @intToFloat(f32, window_height), (30.0 / 180.0) * 3.141159265, 0.1, 1000.0);        
     
 
     var camera_transform_inverse = try active_camera.?.true_transform.?.inverse();
