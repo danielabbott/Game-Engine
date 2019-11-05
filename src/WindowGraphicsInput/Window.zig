@@ -127,6 +127,8 @@ pub fn createWindow(fullscreen: bool, width: u32, height: u32, title: [*]const u
         c.glEnable(c.GL_MULTISAMPLE);
     }
 
+    c.glEnable(c.GL_DEPTH_CLAMP);
+
     if (builtin.mode == builtin.Mode.Debug and c.GL_ARB_debug_output != 0) {
         c.glEnable(c.GL_DEBUG_OUTPUT_SYNCHRONOUS_ARB);
         c.glDebugMessageCallbackARB(debug_callback, null);
