@@ -36,7 +36,7 @@ void main() {
 	vec3 colour;
 	float lum;
 
-	if(lum_range > 0.19) {
+	if(lum_range > 0.05) {
 		colour = (colours[0]+colours[1]+colours[2]+colours[3]+colours[4]) / 5.0;
 		lum = dot(colour, luminanceMultipliers);
 
