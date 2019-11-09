@@ -166,6 +166,8 @@ pub const Light = struct {
                 self.cast_realtime_shadows = false;
                 return;
             }
+
+            try self.depth_framebuffer.?.depth_texture.?.setFiltering(true, MinFilter.Linear);
         }
 
         if (self.average_depth_framebuffer == null) {

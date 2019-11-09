@@ -10,8 +10,10 @@ const vec2 in_coords[3] = vec2[]
 );
 
 out vec2 pass_texture_coordinates;
+flat out vec2 inverseSize;
 
 void main() {
-	pass_texture_coordinates = (in_coords[gl_VertexID] * 0.5 + 0.5) * textureSize(textureSrc, 0);
+    inverseSize = 1.0 / textureSize(textureSrc, 0);
+	pass_texture_coordinates = (in_coords[gl_VertexID] * 0.5 + 0.5);
 	gl_Position = vec4(in_coords[gl_VertexID], 0, 1);
 }

@@ -220,7 +220,7 @@ pub fn main() !void {
         // These values have been tweaked to provide a near-optimal depth texture
         // TODO This information should be moved into the scene file
         light.?.light.?.shadow_width = 54.0;
-        light.?.light.?.shadow_height = 60.0;
+        light.?.light.?.shadow_height = 30.0;
         light.?.light.?.shadow_resolution_width = 1024;
     }
 
