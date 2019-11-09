@@ -82,6 +82,7 @@
     <ClInclude Include="..\..\..\lib\compress\zstd_compress.h" />
     <ClInclude Include="..\..\..\lib\compress\zstd_compress_literals.h" />
     <ClInclude Include="..\..\..\lib\compress\zstd_compress_sequences.h" />
+    <ClInclude Include="..\..\..\lib\compress\zstd_cwksp.h" />
     <ClInclude Include="..\..\..\lib\compress\zstd_fast.h" />
     <ClInclude Include="..\..\..\lib\compress\zstd_double_fast.h" />
     <ClInclude Include="..\..\..\lib\compress\zstd_lazy.h" />
@@ -99,6 +100,7 @@
     <ConfigurationType>StaticLibrary</ConfigurationType>
     <OutDir>$(SolutionDir)bin\$(Platform)_$(Configuration)\</OutDir>
     <IntDir>$(SolutionDir)bin\obj\$(RootNamespace)_$(Platform)_$(Configuration)\</IntDir>
+    <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
