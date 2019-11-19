@@ -140,6 +140,9 @@ pub fn main() !void {
     const settings = render.getSettings();
     scenes.getAmbient(scene_file, &settings.*.ambient);
     scenes.getClearColour(scene_file, &settings.*.clear_colour);
+    std.mem.copy(f32, settings.*.fog_colour[0..3], settings.*.clear_colour);
+    settings.*.fog_colour[3] = 1;
+    
     settings.enable_point_lights = false;
     settings.enable_spot_lights = true;
     settings.max_fragment_lights = 2;

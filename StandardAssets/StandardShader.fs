@@ -54,5 +54,10 @@ void main() {
 		colour *= texture(main_texture, pass_texture_coordinates).rgb;
 	#endif
 
+
+	// fog
+	colour = mix(colour, fogColour.rgb, fogColour.a * pow((clamp(1.0 - gl_FragCoord.z, 0.8, 1.0) - 0.8) * 5.0, 3.0));
+
+
 	outColour = colour;
 }

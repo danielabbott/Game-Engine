@@ -95,6 +95,7 @@ uniform mat4 model_matrix;
 	// Data is set at the start of each frame
 	layout(std140) uniform UniformData {
 		vec4 eyePosition;
+		vec4 fogColour;
 		Light all_lights[256];
 	};
 

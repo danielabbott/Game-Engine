@@ -44,8 +44,8 @@ pub const SettingsStruct = struct {
     enable_shadows: bool = true,
 
     ambient: [3]f32 = [3]f32{0.1,0.1,0.1},
-
     clear_colour: [3]f32 = [3]f32{0.5,0.5,0.5},
+    fog_colour: [4]f32 = [4]f32{0.5,0.5,0.5, 1.0}, 
 };
 
 var settings: ?SettingsStruct = null;
@@ -80,6 +80,7 @@ var uniform_buffer: ?Buffer = null;
 
 const UniformData = packed struct {
     eye_position: [4]f32,
+    fog_colour: [4]f32,
     lights: [MAX_LIGHTS]UniformDataLight
 };
 
@@ -727,7 +728,7 @@ pub fn render(root_object: *Object, micro_time: u64, allocator: *Allocator) !voi
     uniform_data.?.eye_position[3] = 1.0;
 
     const projection_matrix = Matrix(f32, 4).perspectiveProjectionOpenGLInverseZ(
-        @intToFloat(f32, window_width) / @intToFloat(f32, window_height), (30.0 / 180.0) * 3.141159265, 0.1, 1000.0);        
+        @intToFloat(f32, window_width) / @intToFloat(f32, window_height), (30.0 / 180.0) * 3.141159265, 0.2, 100.0);        
     
 
     var camera_transform_inverse = try active_camera.?.true_transform.?.inverse();
@@ -736,13 +737,12 @@ pub fn render(root_object: *Object, micro_time: u64, allocator: *Allocator) !voi
     // This hacky solution fixed the issue
     camera_transform_inverse.data[3][2] += 1.0;
 
-    if (lights_count > 0) {
-        // uniform_data was set in objectsPrePass
-        try uniform_buffer.?.upload(Buffer.BufferType.Uniform, @intToPtr([*]const u8, @ptrToInt(uniform_data.?))[0..(16 + @sizeOf(UniformDataLight) * lights_count)], true);
-        try uniform_buffer.?.bind(Buffer.BufferType.Uniform);
-        try uniform_buffer.?.bindUniform(1, 0, uniform_buffer.?.data_size);
-        try uniform_buffer.?.bindBufferBase(1);
-    }
+    // uniform_data.?.lights was initialised in objectsPrePass
+    std.mem.copy(f32, @alignCast(4, uniform_data.?.fog_colour[0..]), getSettings().fog_colour);
+    try uniform_buffer.?.upload(Buffer.BufferType.Uniform, @intToPtr([*]const u8, @ptrToInt(uniform_data.?))[0..(16*2 + @sizeOf(UniformDataLight) * lights_count)], true);
+    try uniform_buffer.?.bind(Buffer.BufferType.Uniform);
+    try uniform_buffer.?.bindUniform(1, 0, uniform_buffer.?.data_size);
+    try uniform_buffer.?.bindBufferBase(1);
 
     wgi.setDepthModeDirectX();
     wgi.enableDepthWriting();
