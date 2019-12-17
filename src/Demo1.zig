@@ -161,10 +161,10 @@ pub fn main() !void {
         .light_type = render.Light.LightType.Spotlight,
         .colour = [3]f32{ 100, 100, 100 },
         .attenuation = 1,
-        .cast_realtime_shadows = false,
-        .shadow_near = 0.1,
+        .cast_realtime_shadows = true,
+        .shadow_near = 0.5,
         .shadow_far = 20.0,
-        .shadow_resolution_width = 256
+        .shadow_resolution_width = 1024
     };
     try root_object.addChild(&spotlight);
 

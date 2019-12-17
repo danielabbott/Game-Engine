@@ -165,7 +165,7 @@ uniform mat4 model_matrix;
 
 			float t = lightMapCoords.z;
 
-			if(t <= ex) {
+			if(t <= ex-0.01) {
 				// Potentially in shadow				
 
 				float variance2 = ex2 - ex*ex;
