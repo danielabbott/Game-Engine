@@ -404,8 +404,10 @@ def main():
 				writeByte(file, j)
 			
 		for i in boneWeights:
+			sum = i[0] + i[1] + i[2] + i[3]
+			multiplier = 1.0 / sum
 			for j in i:
-				writeByte(file, int(j * 255.0))
+				writeByte(file, int((j*multiplier) * 255.0))
 	
 
 	if EXPORT_TANGENTS:		
