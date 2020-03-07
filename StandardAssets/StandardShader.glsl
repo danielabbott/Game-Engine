@@ -54,7 +54,28 @@ uniform mat4 model_matrix;
 	#endif
 #endif
 
+// Light is always defined, even when lighting is disabled as it is needed for UniformData
+struct Light {
+	// w = type
+	vec4 positionAndType;
+
+	// w = cos(angle) (for spotlight)
+	vec4 directionAndAngle;
+
+	// w = attenuation
+	vec4 intensity;
+};
+
+// Data is set at the start of each frame
+layout(std140) uniform UniformData {
+	vec4 eyePosition;
+	vec4 fogColour;
+	Light all_lights[256];
+};
+
 #if MAX_LIGHTS > 0
+
+
 
 	#ifdef ENABLE_SPECULAR
 		// 0 - 1. The closer the number is  to 0, the bigger the highlight.
@@ -79,26 +100,6 @@ uniform mat4 model_matrix;
 		#define LIGHT_TYPE_SPOTLIGHT 5.0
 		#define LIGHT_TYPE_SPOTLIGHT_WITH_SHADOWS 6.0
 	#endif
-
-
-	struct Light {
-		// w = type
-		vec4 positionAndType;
-
-		// w = cos(angle) (for spotlight)
-		vec4 directionAndAngle;
-
-		// w = attenuation
-		vec4 intensity;
-	};
-
-	// Data is set at the start of each frame
-	layout(std140) uniform UniformData {
-		vec4 eyePosition;
-		vec4 fogColour;
-		Light all_lights[256];
-	};
-
 
 
 	#if defined(ENABLE_SHADOWS) && defined(FRAGMENT_SHADER)
