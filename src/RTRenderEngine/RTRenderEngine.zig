@@ -35,6 +35,8 @@ var this_frame_time: u64 = 0;
 const MAX_LIGHTS = 256; // Must match value in StandardShader.glsl
 
 pub const SettingsStruct = struct {
+    // Changing these variables may result in shaders being recompiled in the next frame
+
     max_fragment_lights: u32 = 4,// max 4
     max_vertex_lights: u32 = 8, // max 8
     enable_specular_light: bool = true,
@@ -42,6 +44,8 @@ pub const SettingsStruct = struct {
     enable_directional_lights: bool = true,
     enable_spot_lights: bool = true,
     enable_shadows: bool = true,
+
+    // These cost nothing to change
 
     ambient: [3]f32 = [3]f32{0.1,0.1,0.1},
     clear_colour: [3]f32 = [3]f32{0.5,0.5,0.5},

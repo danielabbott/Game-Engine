@@ -54,6 +54,14 @@ fn keyCallback(key: i32, scancode: i32, action: i32, mods: i32) void {
     }
 }
 
+fn assetFileLoaded(a: *Asset) void {
+    std.debug.warn("Asset file loaded: {}\n", a.*.file_path[0..a.*.file_path_len]);
+}
+
+fn assetLoaded(a: *Asset) void {
+    std.debug.warn("Asset loaded: {}\n", a.*.file_path[0..a.*.file_path_len]);
+}
+
 pub fn main() !void {
     assets.setAssetsDirectory("DemoAssets" ++ Files.path_seperator);
 
@@ -88,6 +96,11 @@ pub fn main() !void {
                 }
             }
         }
+    }
+
+    for (assets_list.toSlice()) |*a| {
+        a.*.whenFileLoaded = assetFileLoaded;
+        a.*.whenAssetDecoded = assetLoaded;
     }
 
     try assets.startAssetLoader1(assets_list.toSlice(), c_allocator);

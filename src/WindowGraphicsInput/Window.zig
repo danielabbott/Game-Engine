@@ -5,6 +5,8 @@ const c = @import("c.zig").c;
 const mem = std.mem;
 const builtin = @import("builtin");
 const wgi = @import("WindowGraphicsInput.zig");
+const Files = @import("../Files.zig");
+const image = @import("Image.zig");
 
 var maxVertexAttribs: u32 = 16;
 var maxTextureSize: u32 = 1024;
@@ -331,4 +333,36 @@ pub fn setIcon(icon_16x16: ?[]u32, icon_32x32: ?[]u32, icon_48x48: ?[]u32, icon_
     if(i != 0) {
         c.glfwSetWindowIcon(window, @intCast(c_int, i), &images[0]);
     }
+}
+
+pub fn loadIcon(file_path: []const u8, allocator: *std.mem.Allocator) !void {    
+    const image_file_data = try Files.loadFile(file_path, allocator);
+    defer allocator.free(image_file_data);
+    var ico_components: u32 = 4;
+    var ico_width: u32 = 0;
+    var ico_height: u32 = 0;
+    const ico_data = try image.decodeImage(image_file_data, &ico_components, &ico_width, &ico_height, allocator);
+    defer image.freeDecodedImage(ico_data);
+
+
+    if(ico_components != 4 or ico_data.len != ico_width*ico_height*4) {
+        return error.ImageDecodeError;
+    }
+
+    if(ico_width == 16 and ico_height == 16) {
+        setIcon(@bytesToSlice(u32, @sliceToBytes(ico_data)), null, null, null);
+    }
+    else if(ico_width == 32 and ico_height == 32) {
+        setIcon(null, @bytesToSlice(u32, @sliceToBytes(ico_data)), null, null);
+    }
+    else if(ico_width == 48 and ico_height == 48) {
+        setIcon(null, null, @bytesToSlice(u32, @sliceToBytes(ico_data)), null);
+    }
+    else if(ico_width == 256 and ico_height == 256) {
+        setIcon(null, null, null, @bytesToSlice(u32, @sliceToBytes(ico_data)));
+    }
+    else {
+        return error.IconWrongSize;
+    }
+
 }

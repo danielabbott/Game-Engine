@@ -51,6 +51,7 @@ pub const Asset = struct {
         Freed, // Data has been freed
     };
 
+    // TODO: Should this be a pointer?
     file_path: [32]u8,
     file_path_len: u32,
 
@@ -64,6 +65,9 @@ pub const Asset = struct {
 
     // if asset_type == AssetType.Texture
     texture_channels: u32 = 0,
+
+    whenFileLoaded: ?(fn (*Asset) void) = null,
+    whenAssetDecoded: ?(fn (*Asset) void) = null,
 
     // -- Asset (meta)data --
 
@@ -164,6 +168,10 @@ pub const Asset = struct {
             self.data = try loadFile(n, allocator_);
         }
         self.state = AssetState.Loaded;
+
+        if(self.whenFileLoaded != null) {
+            self.whenFileLoaded.?(self);
+        }
     }
 
     // Use same allocator as was used for load()
@@ -232,6 +240,10 @@ pub const Asset = struct {
         
 
         self.state = AssetState.Ready;
+
+        if(self.whenAssetDecoded != null) {
+            self.whenAssetDecoded.?(self);
+        }
     }
 
     // Keeps things such as model file metadata loaded but frees the memory that is typicaly stored in video memory

@@ -70,54 +70,40 @@ fn keyCallback(key: i32, scancode: i32, action: i32, mods: i32) void {
     }
 }
 
-pub fn loadIcon() !void {    
-    const image_file_data = try Files.loadFile("DemoAssets" ++ Files.path_seperator ++ "icon.jpg", c_allocator);
-    defer c_allocator.free(image_file_data);
-    var ico_components: u32 = 4;
-    var ico_width: u32 = 0;
-    var ico_height: u32 = 0;
-    const ico_data = try image.decodeImage(image_file_data, &ico_components, &ico_width, &ico_height, c_allocator);
-    defer image.freeDecodedImage(ico_data);
+fn assetFileLoaded(a: *Asset) void {
+    std.debug.warn("Asset file loaded: {}\n", a.*.file_path[0..a.*.file_path_len]);
+}
 
-    if(ico_width != 48 or ico_height != 48) {
-        return error.IconWrongSize;
-    }
-
-    if(ico_components != 4 or ico_data.len != 48*48*4) {
-        return error.ImageDecodeError;
-    }
-
-    window.setIcon(null, null, @bytesToSlice(u32, @sliceToBytes(ico_data)), null);
+fn assetLoaded(a: *Asset) void {
+    std.debug.warn("Asset loaded: {}\n", a.*.file_path[0..a.*.file_path_len]);
 }
 
 pub fn main() !void {
+    // Specify root folder for assets
     assets.setAssetsDirectory("DemoAssets" ++ Files.path_seperator);
 
+    // Loads the scene file
+    // This is a text file which containts a list of assets and game objects
     const scene_file = try loadFile("DemoAssets" ++ Files.path_seperator ++ "Farm.scene", c_allocator);
     defer c_allocator.free(scene_file);
 
     var assets_list = std.ArrayList(Asset).init(c_allocator);
     defer assets_list.deinit();
 
-    defer {
-        for(assets_list.toSlice()) |*a| {
-            if(a.state != Asset.AssetState.Freed) {
-                std.debug.warn("Asset {} not freed\n", a.file_path[0..a.file_path_len]);
-                if(a.data != null) {
-                    std.debug.warn("\t^ Data has not been freed either\n");
-                }
-            }
-        }
-    }
-
+    // Gets the assets list from the scene file and creates asset objects
     try scenes.getAssets(scene_file, &assets_list);
 
     const num_scene_assets = assets_list.count();
 
-    defer {
+    defer { // Free all assets (even if they are being used)
         for (assets_list.toSlice()) |*a| {
             a.*.free(true);
         }
+    }
+
+    for (assets_list.toSlice()) |*a| {
+        a.*.whenFileLoaded = assetFileLoaded;
+        a.*.whenAssetDecoded = assetLoaded;
     }
 
     try assets.startAssetLoader1(assets_list.toSlice(), c_allocator);
@@ -127,7 +113,7 @@ pub fn main() !void {
     defer window.closeWindow();
     window.setResizeable(true);
 
-    loadIcon() catch |e| {
+    window.loadIcon("DemoAssets" ++ Files.path_seperator ++ "icon.jpg", c_allocator) catch |e| {
         warn("Error loading icon: {}\n", e);
     };
 
