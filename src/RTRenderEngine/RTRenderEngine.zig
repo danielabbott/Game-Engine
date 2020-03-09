@@ -36,8 +36,7 @@ const MAX_LIGHTS = 256; // Must match value in StandardShader.glsl
 
 pub const SettingsStruct = struct {
     // Changing these variables may result in shaders being recompiled in the next frame
-
-    max_fragment_lights: u32 = 4,// max 4
+    max_fragment_lights: u32 = 4, // max 4
     max_vertex_lights: u32 = 8, // max 8
     enable_specular_light: bool = true,
     enable_point_lights: bool = true,
@@ -47,9 +46,9 @@ pub const SettingsStruct = struct {
 
     // These cost nothing to change
 
-    ambient: [3]f32 = [3]f32{0.1,0.1,0.1},
-    clear_colour: [3]f32 = [3]f32{0.5,0.5,0.5},
-    fog_colour: [4]f32 = [4]f32{0.5,0.5,0.5, 1.0}, 
+    ambient: [3]f32 = [3]f32{ 0.1, 0.1, 0.1 },
+    clear_colour: [3]f32 = [3]f32{ 0.5, 0.5, 0.5 },
+    fog_colour: [4]f32 = [4]f32{ 0.5, 0.5, 0.5, 1.0 },
 };
 
 var settings: ?SettingsStruct = null;
@@ -85,7 +84,7 @@ var uniform_buffer: ?Buffer = null;
 const UniformData = packed struct {
     eye_position: [4]f32,
     fog_colour: [4]f32,
-    lights: [MAX_LIGHTS]UniformDataLight
+    lights: [MAX_LIGHTS]UniformDataLight,
 };
 
 var uniform_data: ?*UniformData = null;
@@ -119,7 +118,7 @@ pub const Light = struct {
     lum: f32 = 0.0,
     effect: f32 = 0.0,
     distance_divider: f32 = 1.0,
-    light_pos: Vector(f32, 3) = Vector(f32, 3).init([3]f32{0,0,0}),
+    light_pos: Vector(f32, 3) = Vector(f32, 3).init([3]f32{ 0, 0, 0 }),
     uniform_array_index: u32 = 0,
     depth_framebuffer: ?FrameBuffer = null,
     average_depth_framebuffer: ?FrameBuffer = null,
@@ -128,13 +127,13 @@ pub const Light = struct {
     // Checks the mesh renderer variables and global settings to determine whether this light
     // shouldbe used this frame
     pub fn lightShouldBeUsed(self: *Light, mesh_renderer: *MeshRenderer) bool {
-        if(self.light_type == Light.LightType.Point) {
+        if (self.light_type == Light.LightType.Point) {
             return getSettings().enable_point_lights and mesh_renderer.enable_point_lights;
         }
-        if(self.light_type == Light.LightType.Directional) {
+        if (self.light_type == Light.LightType.Directional) {
             return getSettings().enable_directional_lights and mesh_renderer.enable_directional_lights;
         }
-        if(self.light_type == Light.LightType.Spotlight) {
+        if (self.light_type == Light.LightType.Spotlight) {
             return getSettings().enable_spot_lights and mesh_renderer.enable_spot_lights;
         }
         assert(false);
@@ -147,7 +146,7 @@ pub const Light = struct {
             return;
         }
 
-        if(self.light_type == LightType.Point) {
+        if (self.light_type == LightType.Point) {
             self.cast_realtime_shadows = false;
             return;
         }
@@ -157,13 +156,12 @@ pub const Light = struct {
 
         // Create frame buffer object
 
-        var shadow_resolution_height = @floatToInt(u32, (@intToFloat(f32, self.shadow_resolution_width) * self.shadow_height) 
-                                            / self.shadow_width);
+        var shadow_resolution_height = @floatToInt(u32, (@intToFloat(f32, self.shadow_resolution_width) * self.shadow_height) / self.shadow_width);
 
-        if(shadow_resolution_height % 16 != 0) {
+        if (shadow_resolution_height % 16 != 0) {
             shadow_resolution_height += 16 - (shadow_resolution_height % 16);
         }
-        
+
         if (self.depth_framebuffer == null) {
             self.depth_framebuffer = FrameBuffer.init(null, self.shadow_resolution_width, shadow_resolution_height, FrameBuffer.DepthType.I16) catch null;
 
@@ -176,8 +174,8 @@ pub const Light = struct {
         }
 
         if (self.average_depth_framebuffer == null) {
-            self.average_depth_framebuffer = FrameBuffer.init(ImageType.RG32F, self.shadow_resolution_width/16, shadow_resolution_height/16, FrameBuffer.DepthType.None) catch null;
-            
+            self.average_depth_framebuffer = FrameBuffer.init(ImageType.RG32F, self.shadow_resolution_width / 16, shadow_resolution_height / 16, FrameBuffer.DepthType.None) catch null;
+
             if (self.average_depth_framebuffer == null) {
                 self.cast_realtime_shadows = false;
                 return;
@@ -185,18 +183,14 @@ pub const Light = struct {
 
             try self.average_depth_framebuffer.?.setTextureFiltering(true, true);
         }
-        
-        var projection_matrix : ?Matrix(f32, 4) = null;
 
-        if(self.light_type == LightType.Directional) {
-            projection_matrix = Matrix(f32, 4).orthoProjectionOpenGLInverseZ(-self.shadow_width * 0.5, self.shadow_width * 0.5,
-                -self.shadow_height * 0.5, self.shadow_height * 0.5, 
-                self.shadow_near, self.shadow_far);
-        }
-        else {
+        var projection_matrix: ?Matrix(f32, 4) = null;
+
+        if (self.light_type == LightType.Directional) {
+            projection_matrix = Matrix(f32, 4).orthoProjectionOpenGLInverseZ(-self.shadow_width * 0.5, self.shadow_width * 0.5, -self.shadow_height * 0.5, self.shadow_height * 0.5, self.shadow_near, self.shadow_far);
+        } else {
             const angle = std.math.acos(self.angle) * 2.0;
-            projection_matrix = Matrix(f32, 4).perspectiveProjectionOpenGLInverseZ(self.shadow_width / self.shadow_height,
-                angle, self.shadow_near, self.shadow_far);
+            projection_matrix = Matrix(f32, 4).perspectiveProjectionOpenGLInverseZ(self.shadow_width / self.shadow_height, angle, self.shadow_near, self.shadow_far);
         }
 
         var view_matrix = try light_transform.*.inverse();
@@ -233,9 +227,8 @@ pub const UniformDataLight = packed struct {
 };
 
 pub const Object = struct {
-    name: [16]u8 = ([1]u8 {0}) ** 16,
+    name: [16]u8 = ([1]u8{0}) ** 16,
     name_length: u32 = 0,
-
 
     // If parent is null then the object has been deleted
     parent: ?*Object = null,
@@ -261,7 +254,7 @@ pub const Object = struct {
     true_transform: ?Matrix(f32, 4) = null,
 
     pub fn init(name: []const u8) Object {
-        var obj = Object {};
+        var obj = Object{};
         obj.name_length = std.math.min(@intCast(u32, name.len), 16);
         std.mem.copy(u8, obj.name[0..obj.name_length], name[0..obj.name_length]);
         return obj;
@@ -275,20 +268,19 @@ pub const Object = struct {
     fn nullifyTrueTransform(self: *Object) void {
         self.true_transform = null;
 
-        if(self.first_child != null) {
+        if (self.first_child != null) {
             self.first_child.?.nullifyTrueTransform();
         }
-        if(self.next != null and self.next.? != self and self.next.? != self.parent.?.first_child.?) {
+        if (self.next != null and self.next.? != self and self.next.? != self.parent.?.first_child.?) {
             self.next.?.nullifyTrueTransform();
         }
     }
 
     pub fn delete_(self: *Object, free_resources: bool) void {
         // Detatch associated resources
-
-        if(self.mesh_renderer != null) {
+        if (self.mesh_renderer != null) {
             self.mesh_renderer.?.ref_count.dec();
-            if(free_resources) {
+            if (free_resources) {
                 self.mesh_renderer.?.freeIfUnused();
             }
         }
@@ -296,17 +288,17 @@ pub const Object = struct {
 
         // Delete the children
 
-        if(self.first_child != null) {
+        if (self.first_child != null) {
             self.first_child.?.delete_(free_resources);
         }
-        if(self.next != null and self.next.? != self and self.next.? != self.parent.?.first_child.?) {
+        if (self.next != null and self.next.? != self and self.next.? != self.parent.?.first_child.?) {
             self.next.?.delete_(free_resources);
         }
     }
 
     // Also deletes all children
     pub fn delete(self: *Object, free_resources: bool) void {
-        if(active_camera == self) {
+        if (active_camera == self) {
             active_camera = null;
         }
 
@@ -325,12 +317,12 @@ pub const Object = struct {
                 self.prev.?.next = self.next;
                 self.next.?.prev = self.prev;
 
-                if(self.prev.?.next == self.prev.? or self.prev.?.prev == self.prev.?) {
+                if (self.prev.?.next == self.prev.? or self.prev.?.prev == self.prev.?) {
                     self.prev.?.next = null;
                     self.prev.?.prev = null;
                 }
 
-                if(self.next.?.next == self.next.? or self.next.?.prev == self.next.?) {
+                if (self.next.?.next == self.next.? or self.next.?.prev == self.next.?) {
                     self.next.?.next = null;
                     self.next.?.prev = null;
                 }
@@ -338,11 +330,9 @@ pub const Object = struct {
             self.parent = null;
         }
 
-        if(free_resources) {
+        if (free_resources) {
             self.delete_(free_resources);
         }
-
-        
     }
 
     pub fn setMeshRenderer(self: *Object, mesh_renderer: ?*MeshRenderer) void {
@@ -376,15 +366,15 @@ pub const Object = struct {
     }
 
     pub fn nameIs(self: *Object, name: []const u8) bool {
-        if(name.len > 16) {
+        if (name.len > 16) {
             return false;
         }
-        if(name.len != self.name_length) {
+        if (name.len != self.name_length) {
             return false;
         }
         var i: u32 = 0;
-        while(i < name.len) : (i += 1) {
-            if(name[i] != self.name[i]) {
+        while (i < name.len) : (i += 1) {
+            if (name[i] != self.name[i]) {
                 return false;
             }
         }
@@ -397,23 +387,22 @@ pub const Object = struct {
         const first = self.first_child;
         var current = self.first_child;
 
-        while(current != null) {
-            if(current.?.nameIs(child_name)){
+        while (current != null) {
+            if (current.?.nameIs(child_name)) {
                 return current.?;
             }
 
             current = current.?.next;
-            if(current == first) {
+            if (current == first) {
                 break;
             }
         }
 
         return null;
-        
     }
 
     // pub fn findChildRecursive(self: *Object, child_name: []const u8) !*Object {
-        // TODO
+    // TODO
     // }
 
     // Calculates transformation matrix of object in world space (applies transformations of all parents)
@@ -441,7 +430,7 @@ pub const Object = struct {
             if (light.*.light.?.light_type == Light.LightType.Point or light.*.light.?.light_type == Light.LightType.Spotlight) {
                 // TODO If the bounding box of the object was known then we could determine if the light effects the object for Spotlights
                 var v = light.*.light.?.light_pos;
-                v.sub(obj_pos);       
+                v.sub(obj_pos);
 
                 const x = v.length() * light.*.light.?.attenuation;
                 const distDiv = x * x;
@@ -467,7 +456,6 @@ pub const Object = struct {
 
         if (lights.?.len > 1) {
             // Sort the lights by the effect on this object (most -> least effect)
-
             const sortFunction = struct {
                 fn f(a: *Object, b: *Object) bool {
                     return a.*.light.?.effect > b.*.light.?.effect;
@@ -484,11 +472,11 @@ pub const Object = struct {
         var i: u32 = 0; // index into lights_slice
         var j: u32 = 0; // index into light arrays
         while (i < getSettings().max_fragment_lights and i < max_fragment_lights and i < lights_slice.len) : (i += 1) {
-            if(lights_slice[i].*.light.?.lightShouldBeUsed(self.mesh_renderer.?)) {
+            if (lights_slice[i].*.light.?.lightShouldBeUsed(self.mesh_renderer.?)) {
                 fragment_light_indices[j] = @intCast(i32, lights_slice[i].*.light.?.uniform_array_index);
 
                 if (lights_slice[i].*.light.?.cast_realtime_shadows and getSettings().enable_shadows) {
-                    if(lights_slice[i].*.light.?.light_type != Light.LightType.Point){                           
+                    if (lights_slice[i].*.light.?.light_type != Light.LightType.Point) {
                         fragment_light_matrices[j] = lights_slice[i].*.light.?.light_matrix;
                         fragment_light_shadow_textures[j] = &lights_slice[i].*.light.?.average_depth_framebuffer.?;
                     }
@@ -500,16 +488,15 @@ pub const Object = struct {
 
         j = 0;
         while (j < 8 and i < lights_slice.len and i < max_vertex_lights and i < getSettings().max_vertex_lights) {
-            if(lights_slice[i].*.light.?.lightShouldBeUsed(self.mesh_renderer.?)) {                            
+            if (lights_slice[i].*.light.?.lightShouldBeUsed(self.mesh_renderer.?)) {
                 vertex_light_indices[j] = @intCast(i32, lights_slice[i].*.light.?.uniform_array_index);
                 i += 1;
                 j += 1;
             }
         }
 
-        if(self.mesh_renderer.?.*.enable_per_object_light) {
+        if (self.mesh_renderer.?.*.enable_per_object_light) {
             // Everything else is applied per-object
-
             while (i < lights_slice.len) : (i += 1) {
                 const light = &lights_slice[i].*.light.?;
                 if (light.light_type == Light.LightType.Point) {
@@ -541,32 +528,28 @@ pub const Object = struct {
             // For shadow maps
             try self.mesh_renderer.?.*.drawDepthOnly(allocator, &mvp_matrix, &self.true_transform.?);
         } else {
-            var draw_data = MeshRenderer.DrawData {
+            var draw_data = MeshRenderer.DrawData{
                 .mvp_matrix = &mvp_matrix,
                 .model_matrix = &self.true_transform.?,
                 .model_view_matrix = &model_view_matrix,
                 .light = getSettings().ambient,
                 .vertex_light_indices = [8]i32{ -1, -1, -1, -1, -1, -1, -1, -1 },
                 .fragment_light_indices = [4]i32{ -1, -1, -1, -1 },
-                .fragment_light_matrices = undefined
+                .fragment_light_matrices = undefined,
             };
 
             var fragment_light_shadow_textures: [4](?*const FrameBuffer) = [4](?*const FrameBuffer){ null, null, null, null };
 
-            self.getLightData(self.mesh_renderer.?.*.max_vertex_lights, self.mesh_renderer.?.*.max_fragment_lights, 
-                    &draw_data.light, &draw_data.vertex_light_indices, &draw_data.fragment_light_indices, &draw_data.fragment_light_matrices,
-                    &fragment_light_shadow_textures);
+            self.getLightData(self.mesh_renderer.?.*.max_vertex_lights, self.mesh_renderer.?.*.max_fragment_lights, &draw_data.light, &draw_data.vertex_light_indices, &draw_data.fragment_light_indices, &draw_data.fragment_light_matrices, &fragment_light_shadow_textures);
 
             var i: u32 = 0;
             while (i < 4) : (i += 1) {
                 if (fragment_light_shadow_textures[i] != null) {
                     fragment_light_shadow_textures[i].?.bindTextureToUnit(2 + i) catch {};
-                }
-                else {
+                } else {
                     wgi.Texture2D.unbind(2 + i);
                 }
             }
-
 
             try self.mesh_renderer.?.draw(draw_data, allocator);
         }
@@ -574,7 +557,7 @@ pub const Object = struct {
 };
 
 var active_camera: ?*Object = null;
-var camera_position = Vector(f32, 3).init([3]f32{0,0,0});
+var camera_position = Vector(f32, 3).init([3]f32{ 0, 0, 0 });
 
 // camera direction = transform * (0,0,-1).
 pub fn setActiveCamera(camera: *Object) void {
@@ -582,7 +565,6 @@ pub fn setActiveCamera(camera: *Object) void {
 }
 
 const PrePassError_ = error{PrePassError};
-
 
 // First iteration over all objects.
 // Calculates transformations in world space and gathers and generates light/shadow data ready for rendering
@@ -602,15 +584,14 @@ fn objectsPrePass(o: *Object, allocator: *Allocator, root_object: *Object) PrePa
         ).mulMat(o.true_transform.?);
         rot.normalise();
 
-        if(l.light_type == Light.LightType.Directional) {
+        if (l.light_type == Light.LightType.Directional) {
             rot.data[0] = -rot.data[0];
             rot.data[1] = -rot.data[1];
             rot.data[2] = -rot.data[2];
         }
 
-
         l.uniform_array_index = lights_count;
-        var type_ = @enumToInt(l.light_type)*2+1;
+        var type_ = @enumToInt(l.light_type) * 2 + 1;
         if (l.cast_realtime_shadows) {
             type_ += 1;
         }
@@ -634,7 +615,7 @@ fn objectsPrePass(o: *Object, allocator: *Allocator, root_object: *Object) PrePa
 }
 
 // obj = root
-fn renderObjects(o: *Object, allocator: *Allocator, view_matrix: *const Matrix(f32, 4), projection_matrix: *const Matrix(f32, 4), depth_only: bool) @typeOf(Object.renderObject).ReturnType.ErrorSet!void {   
+fn renderObjects(o: *Object, allocator: *Allocator, view_matrix: *const Matrix(f32, 4), projection_matrix: *const Matrix(f32, 4), depth_only: bool) @typeOf(Object.renderObject).ReturnType.ErrorSet!void {
     try o.renderObject(allocator, view_matrix, projection_matrix, depth_only);
 
     // depth-first traversal
@@ -673,7 +654,6 @@ pub fn init(time: u64, allocator: *Allocator) !void {
     errdefer default_texture.?.free();
     try default_texture.?.upload(1, 1, ImageType.RGBA, [4]u8{ 0xff, 0xff, 0xff, 0xff });
 
-    
     default_normal_map = try Tex2D.init(false, MinFilter.Nearest);
     errdefer default_normal_map.?.free();
     try default_normal_map.?.upload(1, 1, ImageType.RGBA, [4]u8{ 0x80, 0x80, 0xff, 0xff });
@@ -700,15 +680,14 @@ pub fn render(root_object: *Object, micro_time: u64, allocator: *Allocator) !voi
     var window_height: u32 = 0;
     window.getSize(&window_width, &window_height);
 
-    if(window_width == 0 or window_height == 0) {
+    if (window_width == 0 or window_height == 0) {
         // Window is minimised
         return;
     }
 
-    if(active_camera == null) {
+    if (active_camera == null) {
         return;
     }
-
 
     active_camera.?.calculateTransform();
     camera_position = active_camera.?.*.true_transform.?.position3D();
@@ -725,15 +704,12 @@ pub fn render(root_object: *Object, micro_time: u64, allocator: *Allocator) !voi
     // If the window has no depth buffer then post processing must be enabled
     try PostProcess.startFrame(window_width, window_height, allocator);
 
-
     uniform_data.?.eye_position[0] = camera_position.x();
     uniform_data.?.eye_position[1] = camera_position.y();
     uniform_data.?.eye_position[2] = camera_position.z();
     uniform_data.?.eye_position[3] = 1.0;
 
-    const projection_matrix = Matrix(f32, 4).perspectiveProjectionOpenGLInverseZ(
-        @intToFloat(f32, window_width) / @intToFloat(f32, window_height), (30.0 / 180.0) * 3.141159265, 0.2, 100.0);        
-    
+    const projection_matrix = Matrix(f32, 4).perspectiveProjectionOpenGLInverseZ(@intToFloat(f32, window_width) / @intToFloat(f32, window_height), (30.0 / 180.0) * 3.141159265, 0.2, 100.0);
 
     var camera_transform_inverse = try active_camera.?.true_transform.?.inverse();
 
@@ -743,7 +719,7 @@ pub fn render(root_object: *Object, micro_time: u64, allocator: *Allocator) !voi
 
     // uniform_data.?.lights was initialised in objectsPrePass
     std.mem.copy(f32, @alignCast(4, uniform_data.?.fog_colour[0..]), getSettings().fog_colour);
-    try uniform_buffer.?.upload(Buffer.BufferType.Uniform, @intToPtr([*]const u8, @ptrToInt(uniform_data.?))[0..(16*2 + @sizeOf(UniformDataLight) * lights_count)], true);
+    try uniform_buffer.?.upload(Buffer.BufferType.Uniform, @intToPtr([*]const u8, @ptrToInt(uniform_data.?))[0..(16 * 2 + @sizeOf(UniformDataLight) * lights_count)], true);
     try uniform_buffer.?.bind(Buffer.BufferType.Uniform);
     try uniform_buffer.?.bindUniform(1, 0, uniform_buffer.?.data_size);
     try uniform_buffer.?.bindBufferBase(1);
@@ -756,12 +732,7 @@ pub fn render(root_object: *Object, micro_time: u64, allocator: *Allocator) !voi
 
     try renderObjects(root_object, allocator, &camera_transform_inverse, &projection_matrix, false);
 
-    try PostProcess.endFrame(
-        window_width,
-        window_height,
-        brightness,
-        contrast
-    );
+    try PostProcess.endFrame(window_width, window_height, brightness, contrast);
 }
 
 pub fn setImageCorrection(brightness_: f32, contrast_: f32) void {

@@ -59,11 +59,10 @@ fn moveNoUp(x: f32, y: f32, z: f32) void {
 var fullscreen: bool = false;
 
 fn keyCallback(key: i32, scancode: i32, action: i32, mods: i32) void {
-    if(action == Constants.RELEASE and key == Constants.KEY_F11) {
-        if(fullscreen) {
+    if (action == Constants.RELEASE and key == Constants.KEY_F11) {
+        if (fullscreen) {
             window.exitFullScreen(1024, 768);
-        }
-        else {
+        } else {
             window.goFullScreen();
         }
         fullscreen = !fullscreen;
@@ -108,7 +107,6 @@ pub fn main() !void {
 
     try assets.startAssetLoader1(assets_list.toSlice(), c_allocator);
 
-
     try window.createWindow(false, 1024, 768, c"Demo 1", true, 0);
     defer window.closeWindow();
     window.setResizeable(true);
@@ -128,7 +126,7 @@ pub fn main() !void {
     scenes.getClearColour(scene_file, &settings.*.clear_colour);
     std.mem.copy(f32, settings.*.fog_colour[0..3], settings.*.clear_colour);
     settings.*.fog_colour[3] = 1;
-    
+
     settings.enable_point_lights = false;
     settings.enable_spot_lights = true;
     settings.max_fragment_lights = 2;
@@ -150,7 +148,7 @@ pub fn main() !void {
         .cast_realtime_shadows = true,
         .shadow_near = 0.5,
         .shadow_far = 20.0,
-        .shadow_resolution_width = 1024
+        .shadow_resolution_width = 1024,
     };
     try root_object.addChild(&spotlight);
 
@@ -170,8 +168,8 @@ pub fn main() !void {
 
     // Check all assets were loaded successfully
 
-    for(assets_list.toSlice()) |*a| {
-        if(a.state != Asset.AssetState.Ready) {
+    for (assets_list.toSlice()) |*a| {
+        if (a.state != Asset.AssetState.Ready) {
             return error.AssetLoadError;
         }
     }
@@ -183,12 +181,12 @@ pub fn main() !void {
 
     // Free assets (data has been uploaded the GPU)
     // This frees the cpu-side copy of model data and textures which is now stored on the GPU
-    for(assets_list.toSlice()) |*a| {
+    for (assets_list.toSlice()) |*a| {
         a.freeData();
     }
 
     const windmill_blades = scene.findChild("Windmill_Blades");
-    if(windmill_blades == null) {
+    if (windmill_blades == null) {
         return error.NoWindmillBlades;
     }
 
@@ -199,20 +197,19 @@ pub fn main() !void {
     windmill_blades.?.mesh_renderer.?.recieve_shadows = false;
 
     const static_geometry = scene.findChild("FarmStatic");
-    if(static_geometry == null) {
+    if (static_geometry == null) {
         return error.NoStaticGeometry;
     }
     static_geometry.?.mesh_renderer.?.enable_per_object_light = false;
 
     const light = scene.findChild("Light");
-    if(light != null) {
+    if (light != null) {
         // These values have been tweaked to provide a near-optimal depth texture
         // TODO This information should be moved into the scene file
         light.?.light.?.shadow_width = 54.0;
         light.?.light.?.shadow_height = 30.0;
         light.?.light.?.shadow_resolution_width = 1024;
     }
-
 
     var mouse_pos_prev: [2]i32 = input.getMousePosition();
 
@@ -238,7 +235,7 @@ pub fn main() !void {
         last_frame_time = this_frame_time;
 
         if (this_frame_time - last_fps_print_time >= 990000) {
-            warn("{}\n", fps_count+1);
+            warn("{}\n", fps_count + 1);
             fps_count = 0;
             last_fps_print_time = this_frame_time;
         } else {
@@ -300,11 +297,8 @@ pub fn main() !void {
             moveNoUp(-1.875 * deltaTime * speed, 0.0, 0.0);
         }
 
-
         var m = Matrix(f32, 4).rotateY(camera_rotation_euler[1]);
-        m = m.mul(Matrix(f32, 4).translate(Vector(f32, 3).init([3]f32
-            {camera_position[0], camera_position[1]-0.4, camera_position[2]}
-        )));
+        m = m.mul(Matrix(f32, 4).translate(Vector(f32, 3).init([3]f32{ camera_position[0], camera_position[1] - 0.4, camera_position[2] })));
         spotlight.setTransform(m);
 
         // Levitation (does not take camera rotation into account)
@@ -328,9 +322,8 @@ pub fn main() !void {
         camera.setTransform(m);
 
         // Use deltaTime to make rotation speed consistent, regardless of frame rate.
-        rotation += deltaTime*0.1;
-        windmill_blades.?.setTransform(Matrix(f32, 4).rotateZ(rotation)
-            .mul(windmill_blades_default_transform));
+        rotation += deltaTime * 0.1;
+        windmill_blades.?.setTransform(Matrix(f32, 4).rotateZ(rotation).mul(windmill_blades_default_transform));
 
         try render.render(&root_object, micro_time, c_allocator);
 

@@ -36,7 +36,6 @@ pub const FrameBuffer = struct {
             return error.ColourTextureCannotHaveDepthType;
         }
 
-
         // Create OpenGL framebuffer object
 
         var id: u32 = 0;
@@ -49,12 +48,12 @@ pub const FrameBuffer = struct {
 
         c.glBindFramebuffer(c.GL_FRAMEBUFFER, id);
 
-        var frameBuffer = FrameBuffer {
+        var frameBuffer = FrameBuffer{
             .id = id,
             .image_type = image_type,
             .depth_type = depth_type,
             .texture = null,
-            .depth_texture = null
+            .depth_texture = null,
         };
 
         // Create backing texture
@@ -108,10 +107,9 @@ pub const FrameBuffer = struct {
 
     pub fn setTextureFiltering(self: *FrameBuffer, min_blur: bool, mag_blur: bool) !void {
         try self.bindTexture();
-        if(min_blur) {
+        if (min_blur) {
             try self.texture.?.setFiltering(mag_blur, MinFilter.Linear);
-        }
-        else {
+        } else {
             try self.texture.?.setFiltering(mag_blur, MinFilter.Nearest);
         }
     }

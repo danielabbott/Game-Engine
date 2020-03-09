@@ -62,7 +62,7 @@ pub const ImageType = enum {
     RG11FB10F,
 };
 
-const min_filter_gl_values = [_]i32 {
+const min_filter_gl_values = [_]i32{
     c.GL_NEAREST,
     c.GL_LINEAR,
     c.GL_NEAREST_MIPMAP_NEAREST,
@@ -93,8 +93,7 @@ pub fn imageDataSize(w: usize, h: usize, imgType: ImageType) usize {
         expectedDataSize = w * h * 12;
     } else if (imgType == ImageType.RG32F) {
         expectedDataSize = w * h * 8;
-    } else if (imgType == ImageType.RGBA or imgType == ImageType.Depth32 or imgType == ImageType.Depth32F 
-        or imgType == ImageType.RGB10A2 or imgType == ImageType.R32F) {
+    } else if (imgType == ImageType.RGBA or imgType == ImageType.Depth32 or imgType == ImageType.Depth32F or imgType == ImageType.RGB10A2 or imgType == ImageType.R32F) {
         expectedDataSize = w * h * 4;
     } else if (imgType == ImageType.RGB or imgType == ImageType.Depth24) {
         expectedDataSize = w * h * 3;
@@ -184,7 +183,7 @@ pub const Texture2D = struct {
         c.glTexParameteri(c.GL_TEXTURE_2D, c.GL_TEXTURE_COMPARE_MODE, c.GL_COMPARE_REF_TO_TEXTURE);
         c.glTexParameteri(c.GL_TEXTURE_2D, c.GL_TEXTURE_COMPARE_FUNC, c.GL_LESS);
         c.glTexParameteri(c.GL_TEXTURE_2D, c.GL_TEXTURE_MAG_FILTER, c.GL_LINEAR);
-        c.glTexParameteri(c.GL_TEXTURE_2D, c.GL_TEXTURE_MIN_FILTER, c.GL_LINEAR);         
+        c.glTexParameteri(c.GL_TEXTURE_2D, c.GL_TEXTURE_MIN_FILTER, c.GL_LINEAR);
     }
 
     pub fn bindToUnit(self: Texture2D, unit: u32) !void {
@@ -243,7 +242,7 @@ pub const Texture2D = struct {
         }
 
         var data_format: c_uint = c.GL_UNSIGNED_BYTE;
-        if(imgType == ImageType.RGB10A2) {
+        if (imgType == ImageType.RGB10A2) {
             data_format = c.GL_UNSIGNED_INT_10_10_10_2;
         }
         c.glTexImage2D(c.GL_TEXTURE_2D, 0, @intCast(c_int, internalFormat), @intCast(c_int, w), @intCast(c_int, h), 0, image_type_base_internal_formats[@enumToInt(imgType)], data_format, ptr);
@@ -267,7 +266,7 @@ pub const Texture2D = struct {
     }
 
     pub fn free(self: *Texture2D) void {
-        if(self.id == 0) {
+        if (self.id == 0) {
             assert(false);
             return;
         }
@@ -277,7 +276,7 @@ pub const Texture2D = struct {
     }
 
     pub fn freeIfUnused(self: *Texture2D) void {
-        if(self.ref_count.n == 0) {
+        if (self.ref_count.n == 0) {
             self.free();
         }
     }
@@ -384,13 +383,13 @@ pub fn decodeImage(image_file_data: []const u8, components: *u32, image_width: *
         return error.DecodeError;
     }
 
-    if(components.* == 0) {
+    if (components.* == 0) {
         components.* = @intCast(u32, n);
     }
 
     image_width.* = @intCast(u32, w);
     image_height.* = @intCast(u32, w);
-    
+
     return @alignCast(4, data[0..(@intCast(u32, w) * @intCast(u32, h) * @intCast(u32, desired_channels))]);
 }
 

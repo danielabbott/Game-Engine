@@ -30,7 +30,7 @@ pub const VertexMeta = struct {
         source: *buf.Buffer,
     };
 
-    const primitive_type_gl = [_]c_uint {
+    const primitive_type_gl = [_]c_uint{
         c.GL_POINTS,
         c.GL_LINE_STRIP,
         c.GL_LINE_LOOP,
@@ -189,9 +189,8 @@ pub const VertexMeta = struct {
             return error.InvalidParameter;
         }
 
-
-        if(null_vao == null) {
-            null_vao = try VertexMeta.init([_]VertexInput {}, null);
+        if (null_vao == null) {
+            null_vao = try VertexMeta.init([_]VertexInput{}, null);
         }
         try null_vao.?.bind();
 

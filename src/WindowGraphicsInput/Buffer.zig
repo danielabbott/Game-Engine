@@ -8,10 +8,10 @@ const ReferenceCounter = @import("../RefCount.zig").ReferenceCounter;
 pub const Buffer = struct {
     ref_count: ReferenceCounter = ReferenceCounter{},
 
-    const buffer_type_gl = [_]c_uint {
+    const buffer_type_gl = [_]c_uint{
         c.GL_ARRAY_BUFFER,
         c.GL_ELEMENT_ARRAY_BUFFER,
-        c.GL_UNIFORM_BUFFER
+        c.GL_UNIFORM_BUFFER,
     };
 
     pub const BufferType = enum(u32) {

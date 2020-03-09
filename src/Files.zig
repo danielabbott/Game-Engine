@@ -2,7 +2,7 @@ const std = @import("std");
 const File = std.fs.File;
 const builtin = @import("builtin");
 
-pub const path_seperator = if (builtin.os == builtin.Os.windows) "\\" else "/"; 
+pub const path_seperator = if (builtin.os == builtin.Os.windows) "\\" else "/";
 
 // Loads file into memory (plus a zero byte) and stores file struct in the given pointer
 // The file is _not_ closed

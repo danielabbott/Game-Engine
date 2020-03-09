@@ -12,7 +12,7 @@ extern fn DeleteCriticalSection(*c_void) void;
 
 pub const ConditionVariable = switch (builtin.os) {
     // builtin.Os.linux => struct {
-        // TODO
+    // TODO
     // },
     builtin.Os.windows => struct {
         mutex: [40]u8, // 40-byte mutex struct.
@@ -31,7 +31,7 @@ pub const ConditionVariable = switch (builtin.os) {
         // Puts current thread to sleep until another thread calls notify()
         pub fn wait(self: *ConditionVariable) void {
             EnterCriticalSection(&self.mutex);
-            if(!self.need_to_wake) {
+            if (!self.need_to_wake) {
                 // Releases the lock and sleeps
                 SleepConditionVariableCS(&self.condition_variable, &self.mutex, 0xffffffff);
             }
@@ -53,18 +53,17 @@ pub const ConditionVariable = switch (builtin.os) {
     },
     else => struct {
         // Inefficient implementation using an atomic integer and sleeping
-
         need_to_wake: std.atomic.Int(u32),
 
         pub fn init() ConditionVariable {
-            return ConditionVariable {
+            return ConditionVariable{
                 .need_to_wake = std.atomic.Int(u32).init(0),
             };
         }
 
         pub fn wait(self: *ConditionVariable) void {
-            while(self.need_to_wake.get() == 0) {
-                std.time.sleep(1000*1000*5); // 5ms
+            while (self.need_to_wake.get() == 0) {
+                std.time.sleep(1000 * 1000 * 5); // 5ms
             }
         }
 
@@ -72,8 +71,6 @@ pub const ConditionVariable = switch (builtin.os) {
             self.need_to_wake.set(1);
         }
 
-        pub fn free(self: *ConditionVariable) void {
-
-        }
+        pub fn free(self: *ConditionVariable) void {}
     },
 };

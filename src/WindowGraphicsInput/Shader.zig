@@ -10,9 +10,9 @@ const ReferenceCounter = @import("../RefCount.zig").ReferenceCounter;
 
 var bound_shader: u32 = 0;
 
-const shader_type_gl = [_]c_uint {
+const shader_type_gl = [_]c_uint{
     c.GL_VERTEX_SHADER,
-    c.GL_FRAGMENT_SHADER
+    c.GL_FRAGMENT_SHADER,
 };
 
 pub const ShaderType = enum(u32) {
@@ -21,7 +21,6 @@ pub const ShaderType = enum(u32) {
 };
 
 pub const ShaderObject = struct {
-
     id: u32,
     shaderType: ShaderType,
 
@@ -71,8 +70,8 @@ pub const ShaderObject = struct {
                 log[log.len - 1] = 0;
 
                 warn("Log: ###\n{}\n###\nShader that failed:\n###\n", log);
-                for(source_strings) |a| {
-                    warn("{}", a[0..a.len-1]);
+                for (source_strings) |a| {
+                    warn("{}", a[0 .. a.len - 1]);
                 }
                 warn("###\n");
             }
@@ -80,7 +79,7 @@ pub const ShaderObject = struct {
             return error.OpenGLError;
         }
 
-        return ShaderObject {
+        return ShaderObject{
             .id = id,
             .shaderType = sType,
         };
@@ -138,7 +137,7 @@ pub const ShaderProgram = struct {
         // Link
 
         c.glLinkProgram(id);
-        
+
         var s = ShaderProgram{ .id = id };
 
         // Error check and validate
@@ -153,7 +152,6 @@ pub const ShaderProgram = struct {
 
             return error.OpenGLError;
         }
-
 
         return s;
     }
@@ -173,19 +171,19 @@ pub const ShaderProgram = struct {
     }
 
     pub fn validate(self: ShaderProgram, allocator: *std.mem.Allocator) void {
-        if(builtin.mode == builtin.Mode.Debug) {
+        if (builtin.mode == builtin.Mode.Debug) {
             if (self.id == 0) {
                 assert(false);
                 return;
             }
 
             c.glValidateProgram(self.id);
-            
+
             var status: c_int = 0;
             c.glGetProgramiv(self.id, c.GL_VALIDATE_STATUS, &status);
-            
-            if(status == 0) {
-            warn("ShaderProgram.init: Shader validation failed\n");
+
+            if (status == 0) {
+                warn("ShaderProgram.init: Shader validation failed\n");
                 self.printLog(allocator);
             }
         }
@@ -197,7 +195,7 @@ pub const ShaderProgram = struct {
             return error.InvalidState;
         }
 
-        if(bound_shader != self.id) {
+        if (bound_shader != self.id) {
             c.glUseProgram(self.id);
             bound_shader = self.id;
         }
@@ -351,7 +349,7 @@ pub const ShaderProgram = struct {
             assert(false);
             return error.InvalidParameter;
         }
-        if (@intCast(i32, data.len) != count * 4*3) {
+        if (@intCast(i32, data.len) != count * 4 * 3) {
             assert(false);
             return error.InvalidParameter;
         }
@@ -429,13 +427,13 @@ pub const ShaderProgram = struct {
         c.glUniformBlockBinding(self.id, block_index, binding);
     }
 
-    pub fn getBinary(self: ShaderProgram, data: *([] u8), binary_format: *u32, allocator: *std.mem.Allocator) !void {
+    pub fn getBinary(self: ShaderProgram, data: *([]u8), binary_format: *u32, allocator: *std.mem.Allocator) !void {
         if (self.id == 0) {
             assert(false);
             return error.InvalidState;
         }
 
-        if(c.GLAD_GL_ARB_get_program_binary == 0) {
+        if (c.GLAD_GL_ARB_get_program_binary == 0) {
             return error.NotSupported;
         }
 
@@ -443,18 +441,17 @@ pub const ShaderProgram = struct {
 
         c.glGetProgramiv(self.id, c.GL_PROGRAM_BINARY_LENGTH, &binary_size);
 
-        if(binary_size < 1 or binary_size > 100*1024*1024) {
+        if (binary_size < 1 or binary_size > 100 * 1024 * 1024) {
             return error.OpenGLError;
         }
 
         data.* = try allocator.alloc(u8, @intCast(usize, binary_size));
 
         c.glGetProgramBinary(self.id, binary_size, null, @ptrCast([*c]c_uint, binary_format), data.*.ptr);
-
     }
 
     pub fn saveBinary(self: ShaderProgram, file_path: []const u8, allocator: *std.mem.Allocator) !void {
-        var data: [] u8 = undefined;
+        var data: []u8 = undefined;
         var binary_format: [1]u32 = undefined;
         try self.getBinary(&data, &binary_format[0], allocator);
 
@@ -468,7 +465,7 @@ pub const ShaderProgram = struct {
     }
 
     pub fn loadFromBinary(binary_format: u32, data: []const u8) !ShaderProgram {
-        if(c.GLAD_GL_ARB_get_program_binary == 0) {
+        if (c.GLAD_GL_ARB_get_program_binary == 0) {
             return error.NotSupported;
         }
 
@@ -488,13 +485,11 @@ pub const ShaderProgram = struct {
             return error.OpenGLError;
         }
 
-        return ShaderProgram {
-            .id = id
-        };
+        return ShaderProgram{ .id = id };
     }
 
     pub fn loadFromBinaryFile(file_path: []const u8, allocator: *std.mem.Allocator) !ShaderProgram {
-        if(c.GLAD_GL_ARB_get_program_binary == 0) {
+        if (c.GLAD_GL_ARB_get_program_binary == 0) {
             return error.NotSupported;
         }
 
@@ -523,7 +518,7 @@ test "shader" {
     vs.free();
     fs.free();
 
-    var binary_data: [] u8 = undefined;
+    var binary_data: []u8 = undefined;
     var binary_format: u32 = 0;
     try program.getBinary(&binary_data, &binary_format, std.heap.direct_allocator);
     defer std.heap.direct_allocator.free(binary_data);
@@ -531,8 +526,6 @@ test "shader" {
     program.free();
 
     program = try ShaderProgram.loadFromBinary(binary_format, binary_data);
-
-
 
     var uniformId = try program.getUniformLocation(c"matrix");
     expect(uniformId != -1);

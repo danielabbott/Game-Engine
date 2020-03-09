@@ -54,7 +54,7 @@ fn createResources(window_width: u32, window_height: u32, allocator: *std.mem.Al
 }
 
 pub fn startFrame(window_width: u32, window_height: u32, allocator: *std.mem.Allocator) !void {
-    if(window_width == 0 or window_height == 0) {
+    if (window_width == 0 or window_height == 0) {
         return error.InvalidWindowDimensions;
     }
 
@@ -62,9 +62,8 @@ pub fn startFrame(window_width: u32, window_height: u32, allocator: *std.mem.All
         std.debug.warn("Error creating post-process resources: {}\n", e);
         return e;
     };
-    
+
     try fbo.?.bind();
-    
 }
 
 pub fn endFrame(window_width: u32, window_height: u32, brightness: f32, contrast: f32) !void {

@@ -116,7 +116,7 @@ pub fn Vector(comptime T: type, comptime S: u32) type {
         pub fn normalise(self: *Vector(T, S)) void {
             const l = self.length();
             var i: u32 = 0;
-            while(i < S) : (i += 1) {
+            while (i < S) : (i += 1) {
                 self.data[i] /= l;
             }
         }
@@ -178,7 +178,7 @@ pub fn Vector(comptime T: type, comptime S: u32) type {
 test "Copy" {
     var v1 = Vector(f32, 2).init([2]f32{ 3, 4 });
     var v2 = v1.copy();
-    
+
     std.testing.expectEqual(v2.data[0], 3);
     std.testing.expectEqual(v2.data[1], 4);
 }

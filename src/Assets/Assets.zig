@@ -10,7 +10,6 @@ const ReferenceCounter = @import("../RefCount.zig").ReferenceCounter;
 
 var assets_directory: ?[]const u8 = null;
 
-
 // dir should be a global constant and not be changed again
 pub fn setAssetsDirectory(dir: []const u8) void {
     assets_directory = dir;
@@ -37,11 +36,11 @@ pub const Asset = struct {
     };
 
     // If true freeData does nothing
-    const asset_type_keep_data_on_cpu = [_]bool {
+    const asset_type_keep_data_on_cpu = [_]bool{
         false,
         false,
         false,
-        true
+        true,
     };
 
     pub const AssetState = enum {
@@ -88,7 +87,7 @@ pub const Asset = struct {
     // file_path_ is copied into the returned Asset struct
     // Don't forget to set the relvant configuration variables
     pub fn init(file_path_: []const u8) !Asset {
-        if(file_path_.len > 32) {
+        if (file_path_.len > 32) {
             return error.PathTooLong;
         }
 
@@ -104,8 +103,7 @@ pub const Asset = struct {
 
         if (file_path.len >= 6 and std.mem.eql(u8, file_path[file_path.len - 6 ..], ".model")) {
             asset_type = AssetType.Model;
-        }
-        else if (file_path.len >= 5 and std.mem.eql(u8, file_path[file_path.len - 5 ..], ".anim")) {
+        } else if (file_path.len >= 5 and std.mem.eql(u8, file_path[file_path.len - 5 ..], ".anim")) {
             asset_type = AssetType.Animation;
         } else if (file_path.len >= 4 and std.mem.eql(u8, file_path[file_path.len - 4 ..], ".png")) {
             asset_type = AssetType.Texture;
@@ -160,16 +158,15 @@ pub const Asset = struct {
         }
         self.allocator = allocator_;
 
-        if(assets_directory == null) {
+        if (assets_directory == null) {
             self.data = try loadFile(self.file_path[0..self.file_path_len], allocator_);
-        }
-        else {
+        } else {
             const n = std.fmt.bufPrint(path[0..], "{}{}", assets_directory, self.file_path[0..self.file_path_len]) catch unreachable;
             self.data = try loadFile(n, allocator_);
         }
         self.state = AssetState.Loaded;
 
-        if(self.whenFileLoaded != null) {
+        if (self.whenFileLoaded != null) {
             self.whenFileLoaded.?(self);
         }
     }
@@ -188,8 +185,7 @@ pub const Asset = struct {
 
         if (self.asset_type == AssetType.Model) {
             self.model = try ModelData.init(self.data.?, self.allocator.?);
-        }
-        else if (self.asset_type == AssetType.Animation) {
+        } else if (self.asset_type == AssetType.Animation) {
             self.animation = try AnimationData.init(self.data.?);
         } else if (self.asset_type == AssetType.Texture) {
             var w: u32 = 0;
@@ -200,16 +196,13 @@ pub const Asset = struct {
             wgi.image.freeDecodedImage(self.data.?);
             self.data = newData;
 
-            if(self.texture_channels == 3) {
+            if (self.texture_channels == 3) {
                 self.texture_type = wgi.image.ImageType.RGB;
-            }
-            else if(self.texture_channels == 2) {
+            } else if (self.texture_channels == 2) {
                 self.texture_type = wgi.image.ImageType.RG;
-            }
-            else if(self.texture_channels == 1) {
+            } else if (self.texture_channels == 1) {
                 self.texture_type = wgi.image.ImageType.R;
-            }
-            else {
+            } else {
                 self.texture_type = wgi.image.ImageType.RGBA;
             }
         } else if (self.asset_type == AssetType.RGB10A2Texture) {
@@ -237,11 +230,10 @@ pub const Asset = struct {
         }
         // else if(self.asset_type == AssetType.Shader) {
         // }
-        
 
         self.state = AssetState.Ready;
 
-        if(self.whenAssetDecoded != null) {
+        if (self.whenAssetDecoded != null) {
             self.whenAssetDecoded.?(self);
         }
     }
@@ -249,8 +241,7 @@ pub const Asset = struct {
     // Keeps things such as model file metadata loaded but frees the memory that is typicaly stored in video memory
     // Don't call this if the mesh data is to be freed
     pub fn freeData(self: *Asset) void {
-        if (self.state == AssetState.NotLoaded or self.state == AssetState.Freed or self.data == null
-                or asset_type_keep_data_on_cpu[@enumToInt(self.asset_type)] or self.allocator == null) {
+        if (self.state == AssetState.NotLoaded or self.state == AssetState.Freed or self.data == null or asset_type_keep_data_on_cpu[@enumToInt(self.asset_type)] or self.allocator == null) {
             return;
         }
         self.ref_count2.deinit();
@@ -259,7 +250,7 @@ pub const Asset = struct {
     }
 
     pub fn free(self: *Asset, ignore_reference_counting: bool) void {
-        if(!ignore_reference_counting) {
+        if (!ignore_reference_counting) {
             self.ref_count.deinit();
         }
 
@@ -269,13 +260,12 @@ pub const Asset = struct {
             }
         }
 
-        if(self.data != null) {
+        if (self.data != null) {
             self.allocator.?.free(self.data.?);
             self.data = null;
         }
         self.state = AssetState.Freed;
     }
-
 };
 
 var assets_to_load = std.atomic.Int(u32).init(0);
@@ -288,7 +278,7 @@ var abort_load = std.atomic.Int(u32).init(0);
 
 // Do not call this while assets are being loaded
 pub fn addAssetToQueue(asset: *Asset, allocator: *std.mem.Allocator) !void {
-    if(asset.state != Asset.AssetState.NotLoaded) {
+    if (asset.state != Asset.AssetState.NotLoaded) {
         return error.InvalidState;
     }
 
@@ -301,13 +291,12 @@ pub fn addAssetToQueue(asset: *Asset, allocator: *std.mem.Allocator) !void {
 }
 
 fn fileLoader(allocator: *std.mem.Allocator) void {
-    while(abort_load.get() != 1) {
+    while (abort_load.get() != 1) {
         const asset_node = assets_to_load_queue.get();
 
-        if(asset_node == null) {
+        if (asset_node == null) {
             break;
-        }
-        else {
+        } else {
             asset_node.?.data.*.load(allocator) catch |e| {
                 std.debug.warn("Asset '{}' load error: {}\n", asset_node.?.data.file_path[0..asset_node.?.data.file_path_len], e);
                 _ = assets_to_load.decr();
@@ -321,14 +310,13 @@ fn fileLoader(allocator: *std.mem.Allocator) void {
 }
 
 fn assetDecompressor(allocator: *std.mem.Allocator) void {
-    while(assets_to_load.get() > 0) {
+    while (assets_to_load.get() > 0) {
         const asset = assets_to_decompress_queue.get();
 
-        if(asset == null) {
+        if (asset == null) {
             cv.?.wait();
-        }
-        else {
-            if(asset.?.data.*.state == Asset.AssetState.Loaded) {
+        } else {
+            if (asset.?.data.*.state == Asset.AssetState.Loaded) {
                 asset.?.data.*.decompress() catch |e| {
                     std.debug.warn("Asset '{}' decompress error: {}\n", asset.?.data.file_path[0..asset.?.data.file_path_len], e);
                 };
@@ -336,7 +324,7 @@ fn assetDecompressor(allocator: *std.mem.Allocator) void {
 
             allocator.destroy(asset);
 
-            if(assets_to_load.decr() == 1) {
+            if (assets_to_load.decr() == 1) {
                 break;
             }
         }
@@ -345,7 +333,7 @@ fn assetDecompressor(allocator: *std.mem.Allocator) void {
 
 pub fn startAssetLoader_(assets_list: ?([]Asset), allocator: *std.mem.Allocator) !void {
     cv = ConditionVariable.init();
-    if(assets_list != null) {
+    if (assets_list != null) {
         for (assets_list.?) |*a| {
             addAssetToQueue(a, allocator) catch {
                 std.debug.warn("Asset {} added to load queue but is already loaded\n", a.file_path[0..a.file_path_len]);
@@ -376,8 +364,8 @@ pub fn assetsLoaded() bool {
 }
 
 pub fn verifyAllAssetsLoaded(assets_list: []Asset) !void {
-    for(assets_list) |a| {
-        if(a.state != Asset.AssetState.Ready) {
+    for (assets_list) |a| {
+        if (a.state != Asset.AssetState.Ready) {
             return error.AssetLoadError;
         }
     }

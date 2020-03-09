@@ -43,11 +43,10 @@ fn mouseCallback(button: i32, action: i32, mods: i32) void {
 var fullscreen: bool = false;
 
 fn keyCallback(key: i32, scancode: i32, action: i32, mods: i32) void {
-    if(action == Constants.RELEASE and key == Constants.KEY_F11) {
-        if(fullscreen) {
+    if (action == Constants.RELEASE and key == Constants.KEY_F11) {
+        if (fullscreen) {
             window.exitFullScreen(1024, 768);
-        }
-        else {
+        } else {
             window.goFullScreen();
         }
         fullscreen = !fullscreen;
@@ -75,7 +74,7 @@ pub fn main() !void {
     var minotaur_texture2_asset = &assets_list.toSlice()[3];
     var minotaur_normal_map2_asset = &assets_list.toSlice()[4];
     var minotaur_animation_asset = &assets_list.toSlice()[5];
-    
+
     minotaur_model_asset.* = try Asset.init("minotaur.model.compressed");
     minotaur_texture_asset.* = try Asset.init("minotaur.png");
     minotaur_texture_asset.texture_channels = 4;
@@ -88,10 +87,10 @@ pub fn main() !void {
     minotaur_animation_asset.* = try Asset.init("minotaur_idle.anim.compressed");
 
     defer {
-        for(assets_list.toSlice()) |*a| {
-            if(a.state != Asset.AssetState.Freed) {
+        for (assets_list.toSlice()) |*a| {
+            if (a.state != Asset.AssetState.Freed) {
                 std.debug.warn("Asset {} not freed\n", a.file_path[0..a.file_path_len]);
-                if(a.data != null) {
+                if (a.data != null) {
                     std.debug.warn("\t^ Data has not been freed either\n");
                 }
             }
@@ -137,7 +136,7 @@ pub fn main() !void {
 
     var camera: render.Object = render.Object.init("camera");
     try root_object.addChild(&camera);
-    camera.setTransform(Matrix(f32, 4).translate(Vector(f32, 3).init([3]f32{0, 1, 5})));
+    camera.setTransform(Matrix(f32, 4).translate(Vector(f32, 3).init([3]f32{ 0, 1, 5 })));
     render.setActiveCamera(&camera);
 
     var light: render.Object = render.Object.init("light");
@@ -160,8 +159,8 @@ pub fn main() !void {
         std.time.sleep(100000000);
     }
 
-    for(assets_list.toSlice()) |*a| {
-        if(a.state != Asset.AssetState.Ready) {
+    for (assets_list.toSlice()) |*a| {
+        if (a.state != Asset.AssetState.Ready) {
             return error.AssetLoadError;
         }
     }
@@ -193,7 +192,7 @@ pub fn main() !void {
     try root_object.addChild(&minotaur_object);
 
     // Free assets (data has been uploaded the GPU)
-    for(assets_list.toSlice()) |*a| {
+    for (assets_list.toSlice()) |*a| {
         a.freeData();
     }
 
@@ -224,7 +223,7 @@ pub fn main() !void {
         last_frame_time = this_frame_time;
 
         if (this_frame_time - last_fps_print_time >= 990000) {
-            warn("{}\n", fps_count+1);
+            warn("{}\n", fps_count + 1);
             fps_count = 0;
             last_fps_print_time = this_frame_time;
         } else {
@@ -253,7 +252,7 @@ pub fn main() !void {
         if (input.isKeyDown(Constants.KEY_P)) {
             animation_object.pause();
         } else if (input.isKeyDown(Constants.KEY_U)) {
-            animation_object.unpause();            
+            animation_object.unpause();
         }
 
         render.setImageCorrection(brightness, contrast);

@@ -18,7 +18,7 @@ pub const AnimationData = struct {
             return error.FileTooSmall;
         }
 
-        if(data.len % 4 != 0) {
+        if (data.len % 4 != 0) {
             return error.InvalidFileSize;
         }
 
@@ -35,7 +35,7 @@ pub const AnimationData = struct {
         const bone_count = data_u32[3];
 
         var overflow_bits: u32 = undefined;
-        if(@mulWithOverflow(u32, frame_duration, frame_count, &overflow_bits)) {
+        if (@mulWithOverflow(u32, frame_duration, frame_count, &overflow_bits)) {
             return error.AnimationTooLong;
         }
 
@@ -44,7 +44,6 @@ pub const AnimationData = struct {
         if (4 + bone_count > data_u32.len) {
             return error.FileTooSmall;
         }
-
 
         const bone_names_list_start = offset;
 
@@ -55,7 +54,7 @@ pub const AnimationData = struct {
             }
 
             const stringLen = data_u32[offset] & 0xff;
-            
+
             if (offset + (1 + stringLen + 3) / 4 > data_u32.len) {
                 return error.FileTooSmall;
             }
@@ -67,16 +66,16 @@ pub const AnimationData = struct {
 
         const bone_names = @sliceToBytes(data_u32[bone_names_list_start..offset]);
 
-        const matrix_array_size = bone_count*frame_count*4*4;
+        const matrix_array_size = bone_count * frame_count * 4 * 4;
 
-        if (offset + matrix_array_size*2 > data_u32.len) {
+        if (offset + matrix_array_size * 2 > data_u32.len) {
             return error.FileTooSmall;
         }
 
-        const matrices_relative = data_f32[offset.. offset + matrix_array_size];
-        const matrices_absolute = data_f32[offset+matrix_array_size.. offset + matrix_array_size*2];
+        const matrices_relative = data_f32[offset .. offset + matrix_array_size];
+        const matrices_absolute = data_f32[offset + matrix_array_size .. offset + matrix_array_size * 2];
 
-        return AnimationData {
+        return AnimationData{
             .frame_count = frame_count,
             .frame_duration = frame_duration,
             .bone_count = bone_count,
@@ -92,13 +91,13 @@ pub const AnimationData = struct {
         while (i < self.bone_count) : (i += 1) {
             const stringLen = self.bone_names[offset];
 
-            if (std.mem.eql(u8, self.bone_names[offset+1..offset+1+stringLen], bone_name)) {
+            if (std.mem.eql(u8, self.bone_names[offset + 1 .. offset + 1 + stringLen], bone_name)) {
                 return i;
             }
 
             offset += 1 + stringLen;
 
-            if(offset % 4 != 0) {
+            if (offset % 4 != 0) {
                 offset += 4 - (offset % 4);
             }
         }

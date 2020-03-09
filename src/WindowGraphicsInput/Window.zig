@@ -29,8 +29,7 @@ export fn debug_callback(source: c_uint, type_: c_uint, id: c_uint, severity: c_
     }
 }
 
-extern fn glfw_error_callback(code: c_int, description: [*c]const u8) void
-{
+extern fn glfw_error_callback(code: c_int, description: [*c]const u8) void {
     warn("GLFW error: {} {}\n", code, description[0..mem.len(u8, description)]);
 }
 
@@ -38,8 +37,8 @@ extern fn glfw_error_callback(code: c_int, description: [*c]const u8) void
 // disableDepthBuffer_ is used to avoid unnecessarily allocating a depth buffer if FXAA will be used
 pub fn createWindow(fullscreen: bool, width: u32, height: u32, title: [*]const u8, disableDepthBuffer_: bool, msaa: u32) !void {
     disableDepthBuffer = disableDepthBuffer_;
-    
-    if(disableDepthBuffer and msaa > 0) {
+
+    if (disableDepthBuffer and msaa > 0) {
         return error.ParameterError;
     }
 
@@ -63,7 +62,7 @@ pub fn createWindow(fullscreen: bool, width: u32, height: u32, title: [*]const u
         c.glfwWindowHint(c.GLFW_DEPTH_BITS, 32);
     }
 
-    if(builtin.mode == builtin.Mode.Debug) {
+    if (builtin.mode == builtin.Mode.Debug) {
         c.glfwWindowHint(c.GLFW_OPENGL_DEBUG_CONTEXT, 1);
     }
 
@@ -75,7 +74,7 @@ pub fn createWindow(fullscreen: bool, width: u32, height: u32, title: [*]const u
 
     c.glfwWindowHint(c.GLFW_SAMPLES, if (msaa <= 32) @intCast(c_int, msaa) else 32);
 
-    if(fullscreen) {
+    if (fullscreen) {
         const monitor = c.glfwGetPrimaryMonitor();
         const mode = c.glfwGetVideoMode(monitor);
         c.glfwWindowHint(c.GLFW_RED_BITS, mode.*.redBits);
@@ -87,12 +86,11 @@ pub fn createWindow(fullscreen: bool, width: u32, height: u32, title: [*]const u
         window = c.glfwCreateWindow(@intCast(c_int, width), @intCast(c_int, height), title, null, null);
     }
 
-    if(window == null) {
+    if (window == null) {
         return error.GLFWError;
     }
 
     errdefer c.glfwDestroyWindow(window);
-
 
     // Disable mouse acceleration (good for 3D games, bad for GUI)
     // TODO Add functions for enabling/disabling this at any time
@@ -137,15 +135,15 @@ pub fn createWindow(fullscreen: bool, width: u32, height: u32, title: [*]const u
     }
 
     c.glGetIntegerv(c.GL_MAX_TEXTURE_SIZE, @ptrCast([*c]c_int, &maxTextureSize));
-    if(maxTextureSize < 1024) {
+    if (maxTextureSize < 1024) {
         maxTextureSize = 1024;
     }
     c.glGetIntegerv(c.GL_MAX_VERTEX_ATTRIBS, @ptrCast([*c]c_int, &maxVertexAttribs));
-    if(maxVertexAttribs < 16) {
+    if (maxVertexAttribs < 16) {
         maxVertexAttribs = 16;
     }
     c.glGetIntegerv(c.GL_MAX_TEXTURE_IMAGE_UNITS, @ptrCast([*c]c_int, &maxTextureUnits));
-    if(maxTextureUnits < 16) {
+    if (maxTextureUnits < 16) {
         maxTextureUnits = 16;
     }
 }
@@ -304,38 +302,38 @@ pub fn isKeyDown(key: c_int) bool {
 }
 
 pub fn setIcon(icon_16x16: ?[]u32, icon_32x32: ?[]u32, icon_48x48: ?[]u32, icon_256x256: ?[]u32) void {
-    var images : [4]c.GLFWimage = undefined;
+    var images: [4]c.GLFWimage = undefined;
     var i: u32 = 0;
-    if(icon_16x16 != null and icon_16x16.?.len == 16*16) {
+    if (icon_16x16 != null and icon_16x16.?.len == 16 * 16) {
         images[i].width = 16;
         images[i].height = 16;
         images[i].pixels = @ptrCast([*c]u8, &icon_16x16.?[0]);
         i += 1;
     }
-    if(icon_32x32 != null and icon_32x32.?.len == 32*32) {
+    if (icon_32x32 != null and icon_32x32.?.len == 32 * 32) {
         images[i].width = 32;
         images[i].height = 32;
         images[i].pixels = @ptrCast([*c]u8, &icon_32x32.?[0]);
         i += 1;
     }
-    if(icon_48x48 != null and icon_48x48.?.len == 48*48) {
+    if (icon_48x48 != null and icon_48x48.?.len == 48 * 48) {
         images[i].width = 48;
         images[i].height = 48;
         images[i].pixels = @ptrCast([*c]u8, &icon_48x48.?[0]);
         i += 1;
     }
-    if(icon_256x256 != null and icon_256x256.?.len == 256*256) {
+    if (icon_256x256 != null and icon_256x256.?.len == 256 * 256) {
         images[i].width = 256;
         images[i].height = 256;
         images[i].pixels = @ptrCast([*c]u8, &icon_256x256.?[0]);
         i += 1;
     }
-    if(i != 0) {
+    if (i != 0) {
         c.glfwSetWindowIcon(window, @intCast(c_int, i), &images[0]);
     }
 }
 
-pub fn loadIcon(file_path: []const u8, allocator: *std.mem.Allocator) !void {    
+pub fn loadIcon(file_path: []const u8, allocator: *std.mem.Allocator) !void {
     const image_file_data = try Files.loadFile(file_path, allocator);
     defer allocator.free(image_file_data);
     var ico_components: u32 = 4;
@@ -344,25 +342,19 @@ pub fn loadIcon(file_path: []const u8, allocator: *std.mem.Allocator) !void {
     const ico_data = try image.decodeImage(image_file_data, &ico_components, &ico_width, &ico_height, allocator);
     defer image.freeDecodedImage(ico_data);
 
-
-    if(ico_components != 4 or ico_data.len != ico_width*ico_height*4) {
+    if (ico_components != 4 or ico_data.len != ico_width * ico_height * 4) {
         return error.ImageDecodeError;
     }
 
-    if(ico_width == 16 and ico_height == 16) {
+    if (ico_width == 16 and ico_height == 16) {
         setIcon(@bytesToSlice(u32, @sliceToBytes(ico_data)), null, null, null);
-    }
-    else if(ico_width == 32 and ico_height == 32) {
+    } else if (ico_width == 32 and ico_height == 32) {
         setIcon(null, @bytesToSlice(u32, @sliceToBytes(ico_data)), null, null);
-    }
-    else if(ico_width == 48 and ico_height == 48) {
+    } else if (ico_width == 48 and ico_height == 48) {
         setIcon(null, null, @bytesToSlice(u32, @sliceToBytes(ico_data)), null);
-    }
-    else if(ico_width == 256 and ico_height == 256) {
+    } else if (ico_width == 256 and ico_height == 256) {
         setIcon(null, null, null, @bytesToSlice(u32, @sliceToBytes(ico_data)));
-    }
-    else {
+    } else {
         return error.IconWrongSize;
     }
-
 }

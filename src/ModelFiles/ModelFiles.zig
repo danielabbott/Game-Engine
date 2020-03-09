@@ -11,8 +11,8 @@ pub const ModelData = struct {
         Normal = 3,
         BoneIndices = 4,
         BoneWeights = 5,
-        Tangent = 6
-    }; 
+        Tangent = 6,
+    };
 
     // If bigger than 65536 then indices are 32-bit
     vertex_count: u32 = 0,
@@ -57,16 +57,16 @@ pub const ModelData = struct {
 
     // This struct references (read-only) the data until delete is called (unless this function returns with an error)
     pub fn init(data: []align(4) const u8, allocator: *mem.Allocator) !ModelData {
-        if (data.len < 7*4) {
+        if (data.len < 7 * 4) {
             warn("ModelData.init: Data length is only {}\n", data.len);
             return error.FileTooSmall;
         }
 
-        if(data.len % 4 != 0) {
+        if (data.len % 4 != 0) {
             return error.InvalidFileSize;
         }
 
-        var model_data: ModelData = ModelData {};
+        var model_data: ModelData = ModelData{};
 
         const data_u32 = @bytesToSlice(u32, data);
         const data_f32 = @bytesToSlice(f32, data);
@@ -113,9 +113,9 @@ pub const ModelData = struct {
             offset += vertex_data_size;
         } else {
             var attrib_i: u3 = 0;
-            while(attrib_i < 7) : (attrib_i += 1) {
+            while (attrib_i < 7) : (attrib_i += 1) {
                 const attrib_bit_set = (model_data.attributes_bitmap & (u8(1) << attrib_i)) != 0;
-                if(attrib_bit_set) {
+                if (attrib_bit_set) {
                     if (attrib_i == @enumToInt(VertexAttributeType.Position)) {
                         if (offset + model_data.vertex_count * 3 > data_u32.len) {
                             return error.FileTooSmall;
@@ -304,17 +304,17 @@ pub const ModelData = struct {
         var j: u32 = 0;
         var offset: u32 = 0;
         while (j < self.material_count and j <= i) {
-            const stringLen = @intCast(u8, self.materials.?[offset+5] & 0xff);
+            const stringLen = @intCast(u8, self.materials.?[offset + 5] & 0xff);
 
-            default_colour.*[0] = @bitCast(f32, self.materials.?[offset+2]);
-            default_colour.*[1] = @bitCast(f32, self.materials.?[offset+3]);
-            default_colour.*[2] = @bitCast(f32, self.materials.?[offset+4]);
+            default_colour.*[0] = @bitCast(f32, self.materials.?[offset + 2]);
+            default_colour.*[1] = @bitCast(f32, self.materials.?[offset + 3]);
+            default_colour.*[2] = @bitCast(f32, self.materials.?[offset + 4]);
 
             if (j == i) {
                 first_index.* = self.materials.?[offset];
                 index_vertex_count.* = self.materials.?[offset + 1];
                 offset += 2;
-                utf8_name.* = @sliceToBytes(self.materials.?)[(offset*4+1) .. (offset*4 + 1 + stringLen)];
+                utf8_name.* = @sliceToBytes(self.materials.?)[(offset * 4 + 1)..(offset * 4 + 1 + stringLen)];
                 return;
             }
 
@@ -329,24 +329,23 @@ pub const ModelData = struct {
     // Sets bone_data_offset to offset of next bone in array
     // Stop iterating when bone_data_offset >= bones.len
     pub fn getBoneName(self: ModelData, bone_data_offset: *u32) ![]const u8 {
-
-        if(self.bone_count == 0 or bone_data_offset.*+7*4 > self.bones.?.len) {
+        if (self.bone_count == 0 or bone_data_offset.* + 7 * 4 > self.bones.?.len) {
             std.testing.expect(false);
             return error.IndexOutOfBounds;
         }
 
-        bone_data_offset.* += 7*4;
+        bone_data_offset.* += 7 * 4;
         const len = self.bones.?[bone_data_offset.*];
-       
+
         bone_data_offset.* += 1;
         const offset = bone_data_offset.*;
         bone_data_offset.* += len;
 
-        if(bone_data_offset.* % 4 != 0) {
+        if (bone_data_offset.* % 4 != 0) {
             bone_data_offset.* += 4 - (bone_data_offset.* % 4);
         }
 
-        return self.bones.?[offset .. offset+len];
+        return self.bones.?[offset .. offset + len];
     }
 
     // Does not delete the data that was passed to init()
@@ -388,7 +387,9 @@ test "Model import test (non-interleaved)" {
 
         0,
         1,
-        33,33,33,
+        33,
+        33,
+        33,
         0x0043402,
 
         1,
@@ -401,7 +402,11 @@ test "Model import test (non-interleaved)" {
         0xffffffff,
         0x00000601,
 
-        0,0,0,0,0
+        0,
+        0,
+        0,
+        0,
+        0,
     };
 
     var buf: [1024]u8 = undefined;

@@ -19,7 +19,7 @@ pub const Animation = struct {
 
     animation_start_time: u64 = 0,
 
-    matrices: [] f32,
+    matrices: []f32,
     allocator: *std.mem.Allocator,
 
     paused: bool = false,
@@ -31,7 +31,7 @@ pub const Animation = struct {
         var matrices = try allocator.alloc(f32, num_frames * model.bone_count * 4 * 4);
 
         var frame_index: u32 = 0;
-        while(frame_index < num_frames) : (frame_index += 1) {
+        while (frame_index < num_frames) : (frame_index += 1) {
             var bone_i: u32 = 0;
             var bone_o: u32 = 0; // offset into bones data used by getBoneName
             while (bone_i < model.bone_count) : (bone_i += 1) {
@@ -48,33 +48,31 @@ pub const Animation = struct {
     }
 
     pub fn init(animation_data: *AnimationData, model: *ModelData, allocator: *std.mem.Allocator) !Animation {
-        if(model.attributes_bitmap & (1 << @enumToInt(ModelData.VertexAttributeType.BoneIndices)) == 0
-                or model.bone_count == 0) {
+        if (model.attributes_bitmap & (1 << @enumToInt(ModelData.VertexAttributeType.BoneIndices)) == 0 or model.bone_count == 0) {
             return error.MeshNasNoBones;
         }
 
         var matrices = try create_matrices(animation_data, model, allocator);
-       
-        return Animation {
+
+        return Animation{
             .animation_data = animation_data,
             .model = model,
             .matrices = matrices,
             .allocator = allocator,
-            .animation_start_time = this_frame_time
+            .animation_start_time = this_frame_time,
         };
     }
 
     pub fn initFromAssets(animation_asset: *Asset, model_asset: *Asset, allocator: *std.mem.Allocator) !Animation {
-        if(animation_asset.asset_type != Asset.AssetType.Animation
-                or model_asset.asset_type != Asset.AssetType.Model) {
+        if (animation_asset.asset_type != Asset.AssetType.Animation or model_asset.asset_type != Asset.AssetType.Model) {
             return error.InvalidAssetType;
         }
-        if(animation_asset.state != Asset.AssetState.Ready or model_asset.state != Asset.AssetState.Ready) {
+        if (animation_asset.state != Asset.AssetState.Ready or model_asset.state != Asset.AssetState.Ready) {
             return error.InvalidAssetState;
         }
 
         var a = try init(&animation_asset.animation.?, &model_asset.model.?, allocator);
-        
+
         a.animation_asset = animation_asset;
         a.model_asset = model_asset;
 
@@ -86,16 +84,16 @@ pub const Animation = struct {
     }
 
     fn detatchAssets(self: *Animation, free_if_unused: bool) void {
-        if(self.animation_asset != null) {
+        if (self.animation_asset != null) {
             self.animation_asset.?.ref_count.dec();
-            if(free_if_unused and self.animation_asset.?.ref_count.n == 0) {
+            if (free_if_unused and self.animation_asset.?.ref_count.n == 0) {
                 self.animation_asset.?.free(false);
             }
             self.animation_asset = null;
         }
-        if(self.model_asset != null) {
+        if (self.model_asset != null) {
             self.model_asset.?.ref_count.dec();
-            if(free_if_unused and self.model_asset.?.ref_count.n == 0) {
+            if (free_if_unused and self.model_asset.?.ref_count.n == 0) {
                 self.model_asset.?.free(false);
             }
             self.model_asset = null;
@@ -107,28 +105,27 @@ pub const Animation = struct {
     }
 
     pub fn pause(self: *Animation) void {
-        if(self.paused == false) {
+        if (self.paused == false) {
             self.paused = true;
             self.paused_at_time = this_frame_time;
         }
     }
 
     pub fn unpause(self: *Animation) void {
-        if(self.paused == true) {
+        if (self.paused == true) {
             self.paused = false;
-            self.animation_start_time += this_frame_time-self.paused_at_time;
+            self.animation_start_time += this_frame_time - self.paused_at_time;
         }
     }
 
-
     // Used during render - do not call this function
     pub fn setAnimationMatrices(self: *Animation, shader: *const ShaderInstance, model: *ModelData) !void {
-        if(model.bone_count != self.model.bone_count) {
+        if (model.bone_count != self.model.bone_count) {
             return error.ModelNotCompatible;
         }
 
         var now: u64 = this_frame_time;
-        if(self.paused) {
+        if (self.paused) {
             now = self.paused_at_time;
         }
 
@@ -139,14 +136,14 @@ pub const Animation = struct {
         }
 
         frame_index = frame_index % self.animation_data.frame_count;
-        const o = frame_index*model.bone_count*4*4;
+        const o = frame_index * model.bone_count * 4 * 4;
 
-        try shader.setBoneMatrices(self.matrices[o.. o + model.bone_count*4*4]);
+        try shader.setBoneMatrices(self.matrices[o .. o + model.bone_count * 4 * 4]);
     }
 
     pub fn setAnimationIdentityMatrices(shader: *const ShaderInstance, allocator: *std.mem.Allocator) !void {
-        if(identity_matrix_buffer == null) {
-            identity_matrix_buffer = try allocator.alloc(f32, 128*4*4);
+        if (identity_matrix_buffer == null) {
+            identity_matrix_buffer = try allocator.alloc(f32, 128 * 4 * 4);
 
             var bone_i: u32 = 0;
             while (bone_i < 128) : (bone_i += 1) {
@@ -168,7 +165,7 @@ pub const Animation = struct {
     }
 
     pub fn freeIfUnused(self: *Animation) void {
-        if(self.ref_count.n != 0) {
+        if (self.ref_count.n != 0) {
             return;
         }
 

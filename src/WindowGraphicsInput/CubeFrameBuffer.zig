@@ -31,8 +31,8 @@ pub const CubeFrameBuffer = struct {
             return error.NoTexture;
         }
 
-        var frameBuffer = CubeFrameBuffer {
-            .ids = ([1]u32 {0}) ** 6,
+        var frameBuffer = CubeFrameBuffer{
+            .ids = ([1]u32{0}) ** 6,
             .depth_type = depth_type,
             .depth_texture = undefined, // set later
         };
@@ -43,13 +43,12 @@ pub const CubeFrameBuffer = struct {
         errdefer c.glDeleteFramebuffers(6, @ptrCast([*c]c_uint, &frameBuffer.ids));
 
         var i: u32 = 0;
-        while(i < 6) : (i += 1) {
+        while (i < 6) : (i += 1) {
             if (frameBuffer.ids[i] == 0) {
                 assert(false);
                 return error.OpenGLError;
             }
         }
-
 
         // Create depth buffer
         frameBuffer.depth_texture = try CubeMap.init(false, img.MinFilter.Nearest);
@@ -110,7 +109,7 @@ pub const CubeFrameBuffer = struct {
 
     pub fn free(self: *CubeFrameBuffer) void {
         self.ref_count.deinit();
-        
+
         var i: u32 = 0;
 
         while (i < 6) : (i += 1) {

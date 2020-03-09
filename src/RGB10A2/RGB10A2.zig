@@ -10,7 +10,7 @@ pub const c = @cImport({
 });
 
 fn save(path: []const u8, w: u32, h: u32, data: []const u8) !void {
-    assert(data.len == w*h*4);
+    assert(data.len == w * h * 4);
 
     var file = try File.openWrite(path);
     defer file.close();
@@ -56,7 +56,7 @@ pub fn convertFile(path: []const u8, output_file_path: []const u8, allocator: *s
         var x: u32 = 0;
         while (x < w_u32) : (x += 1) {
             const a = @intCast(u32, (decoded_png_u16[src + 3] >> 14)) << 0;
-            const r = (decoded_png_u16[src+2] >> 6) << 2;
+            const r = (decoded_png_u16[src + 2] >> 6) << 2;
             const g = @intCast(u32, (decoded_png_u16[src + 1] >> 6)) << 12;
             const b = @intCast(u32, (decoded_png_u16[src + 0] >> 6)) << 22;
             converted_data[dst] = r | g | b | a;

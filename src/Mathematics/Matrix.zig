@@ -28,13 +28,13 @@ pub fn Matrix(comptime T: type, comptime S: u32) type {
             return a;
         }
 
-        pub fn loadFromSlice(self: Matrix(T, S), slice: []const T) !void {     
-            if(slice.len != S*S) {
+        pub fn loadFromSlice(self: Matrix(T, S), slice: []const T) !void {
+            if (slice.len != S * S) {
                 assert(false);
                 return error.InvalidSliceLength;
             }
 
-            std.mem.copy(f32, @intToPtr([*c]f32, @ptrToInt(&self.data[0][0]))[0..S*S], slice);
+            std.mem.copy(f32, @intToPtr([*c]f32, @ptrToInt(&self.data[0][0]))[0 .. S * S], slice);
         }
 
         pub fn setArray(self: Matrix(T, S), out: *([S][S]T)) void {
@@ -415,9 +415,9 @@ pub fn Matrix(comptime T: type, comptime S: u32) type {
         pub fn decreaseDimension(self: Matrix(T, S)) Matrix(T, S - 1) {
             var m: Matrix(T, S - 1) = undefined;
             var i: u32 = 0;
-            while (i < S-1) : (i += 1) {
+            while (i < S - 1) : (i += 1) {
                 var j: u32 = 0;
-                while (j < S-1) : (j += 1) {
+                while (j < S - 1) : (j += 1) {
                     m.data[i][j] = self.data[i][j];
                 }
             }
@@ -457,8 +457,8 @@ pub fn Matrix(comptime T: type, comptime S: u32) type {
         // OpenGL coordinate system but Z is in the range [0,1] instead of the default [-1,1]
         pub fn perspectiveProjectionOpenGLInverseZ(aspect_ratio: T, fovy: T, near_plane: T, far_plane: T) Matrix(T, 4) {
             var m: Matrix(T, 4) = perspectiveProjectionOpenGL(aspect_ratio, fovy, near_plane, far_plane);
-            m = m.mul(Matrix(f32, 4).scale(Vector(f32, 4).init([4]f32{1.0, 1.0, -0.5, 1.0})));
-            m = m.mul(Matrix(f32, 4).translate(Vector(f32, 3).init([3]f32{0.0, 0.0, 0.5})));
+            m = m.mul(Matrix(f32, 4).scale(Vector(f32, 4).init([4]f32{ 1.0, 1.0, -0.5, 1.0 })));
+            m = m.mul(Matrix(f32, 4).translate(Vector(f32, 3).init([3]f32{ 0.0, 0.0, 0.5 })));
 
             return m;
         }

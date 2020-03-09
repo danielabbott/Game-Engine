@@ -63,15 +63,15 @@ pub fn getAssets(file_data: []align(4) const u8, assets_list: *std.ArrayList(Ass
 // Returns root object
 // Assets must be in the ready state
 // Assets slie must point to the assets loaded by getAssets or the wrong assets will be used
-pub fn loadSceneFromFile(file_data: [] align(4) const u8, assets_list: []Asset, allocator: *std.mem.Allocator) !*render.Object {
-    if(file_data.len % 4 != 0) {
+pub fn loadSceneFromFile(file_data: []align(4) const u8, assets_list: []Asset, allocator: *std.mem.Allocator) !*render.Object {
+    if (file_data.len % 4 != 0) {
         return error.InvalidFile;
     }
 
     const scene_file_u32 = @bytesToSlice(u32, file_data);
     const scene_file_f32 = @bytesToSlice(f32, file_data);
 
-    if(scene_file_u32[0] != 0x1a98fd34) {
+    if (scene_file_u32[0] != 0x1a98fd34) {
         return error.InvalidMagic;
     }
 
@@ -85,7 +85,7 @@ pub fn loadSceneFromFile(file_data: [] align(4) const u8, assets_list: []Asset, 
     };
 
     // Mesh objects
-    
+
     const num_meshes = scene_file_u32[offset];
     offset += 1;
 
@@ -96,31 +96,30 @@ pub fn loadSceneFromFile(file_data: [] align(4) const u8, assets_list: []Asset, 
     var i: u32 = 0;
     while (i < num_meshes) : (i += 1) {
         const asset_index = scene_file_u32[offset];
-        const modifiable = scene_file_u32[offset+1] != 0;
+        const modifiable = scene_file_u32[offset + 1] != 0;
         offset += 2;
 
         const asset = &assets_list[asset_index];
 
-        if(@intCast(usize, asset_index) < assets_list.len and asset.asset_type == Asset.AssetType.Model) {
+        if (@intCast(usize, asset_index) < assets_list.len and asset.asset_type == Asset.AssetType.Model) {
             var mesh = try allocator.create(render.Mesh);
             errdefer allocator.destroy(mesh);
 
             mesh.* = try render.Mesh.initFromAsset(asset, modifiable);
             asset.ref_count.inc();
-            errdefer { 
-                mesh.*.free(); 
+            errdefer {
+                mesh.*.free();
                 asset.ref_count.dec();
             }
 
             meshes.toSlice()[i] = mesh;
-        }
-        else {
+        } else {
             meshes.toSlice()[i] = null;
         }
     }
 
     // Textures (untested)
-    
+
     const num_textures = scene_file_u32[offset];
     offset += 1;
 
@@ -129,35 +128,33 @@ pub fn loadSceneFromFile(file_data: [] align(4) const u8, assets_list: []Asset, 
     try textures.resize(num_textures);
 
     i = 0;
-    while (i < num_textures) : (i += 1)  {
+    while (i < num_textures) : (i += 1) {
         const asset_index = scene_file_u32[offset];
-        const modifiable = scene_file_u32[offset+1] != 0;
-        const smooth_when_magnified = scene_file_u32[offset+2] != 0;
-        const min_filter = @intToEnum(image.MinFilter, @intCast(i32, std.math.min(5, scene_file_u32[offset+3])));
+        const modifiable = scene_file_u32[offset + 1] != 0;
+        const smooth_when_magnified = scene_file_u32[offset + 2] != 0;
+        const min_filter = @intToEnum(image.MinFilter, @intCast(i32, std.math.min(5, scene_file_u32[offset + 3])));
         offset += 4;
 
         const asset = &assets_list[asset_index];
 
-        if(@intCast(usize, asset_index) < assets_list.len and 
+        if (@intCast(usize, asset_index) < assets_list.len and
             (asset.asset_type == Asset.AssetType.Texture or
-                asset.asset_type == Asset.AssetType.RGB10A2Texture)) {
-            
+            asset.asset_type == Asset.AssetType.RGB10A2Texture))
+        {
             var texture = try allocator.create(Texture2D);
             errdefer allocator.destroy(texture);
 
             texture.* = try Texture2D.loadFromAsset(asset);
-            errdefer texture.*.free(); 
+            errdefer texture.*.free();
 
-            if(asset.asset_type == Asset.AssetType.RGB10A2Texture) {
+            if (asset.asset_type == Asset.AssetType.RGB10A2Texture) {
                 try texture.texture.upload(asset.texture_width.?, asset.texture_height.?, asset.texture_type.?, asset.rgb10a2_data.?);
-            }
-            else {
+            } else {
                 try texture.texture.upload(asset.texture_width.?, asset.texture_height.?, asset.texture_type.?, asset.data.?);
             }
 
             textures.toSlice()[i] = texture;
-        }
-        else {
+        } else {
             textures.toSlice()[i] = null;
         }
     }
@@ -172,35 +169,34 @@ pub fn loadSceneFromFile(file_data: [] align(4) const u8, assets_list: []Asset, 
     try objects_list.ensureCapacity(num_objects);
 
     i = 0;
-    while (i < num_objects) : (i += 1)  {
+    while (i < num_objects) : (i += 1) {
         var o = try allocator.create(render.Object);
         errdefer allocator.destroy(o);
         try objects_list.append(o);
         o.* = render.Object{};
 
         var name_i: u32 = 0;
-        while(name_i < 16 and file_data[offset*4+name_i] != 0) : (name_i += 1) {
-            o.name[name_i] = file_data[offset*4+name_i];
+        while (name_i < 16 and file_data[offset * 4 + name_i] != 0) : (name_i += 1) {
+            o.name[name_i] = file_data[offset * 4 + name_i];
         }
         o.name_length = name_i;
 
         offset += 4;
 
         const parent = scene_file_u32[offset];
-        const has_mesh_renderer = scene_file_u32[offset+1] != 0;
-        const has_light = scene_file_u32[offset+2] != 0;
-        o.inherit_parent_transform = scene_file_u32[offset+4] != 0;
+        const has_mesh_renderer = scene_file_u32[offset + 1] != 0;
+        const has_light = scene_file_u32[offset + 2] != 0;
+        o.inherit_parent_transform = scene_file_u32[offset + 4] != 0;
         offset += 5;
 
-        o.*.transform.loadFromSlice(scene_file_f32[offset .. offset+16]) catch unreachable;
+        o.*.transform.loadFromSlice(scene_file_f32[offset .. offset + 16]) catch unreachable;
         offset += 16;
 
-
-        if(has_mesh_renderer) {
+        if (has_mesh_renderer) {
             const mesh_index = scene_file_u32[offset];
             offset += 1;
 
-            if(mesh_index < meshes.count() and meshes.toSlice()[mesh_index] != null) {
+            if (mesh_index < meshes.count() and meshes.toSlice()[mesh_index] != null) {
                 // TODO scene file should have list of mesh renderers
                 // TODO return resource lists to caller
                 var mesh_renderer = try allocator.create(render.MeshRenderer);
@@ -211,58 +207,56 @@ pub fn loadSceneFromFile(file_data: [] align(4) const u8, assets_list: []Asset, 
                 // Materials
 
                 var j: u32 = 0;
-                while(j < 32) : (j += 1) {
-                    const tex = scene_file_u32[offset+0];
-                    const norm = scene_file_u32[offset+1];
+                while (j < 32) : (j += 1) {
+                    const tex = scene_file_u32[offset + 0];
+                    const norm = scene_file_u32[offset + 1];
                     offset += 2;
 
-                    if(tex < textures.count() and textures.toSlice()[tex] != null) {
+                    if (tex < textures.count() and textures.toSlice()[tex] != null) {
                         o.mesh_renderer.?.materials[j].setTexture(textures.toSlice()[tex].?);
                     }
-                    if(norm < textures.count() and textures.toSlice()[norm] != null) {
+                    if (norm < textures.count() and textures.toSlice()[norm] != null) {
                         o.mesh_renderer.?.materials[j].setNormalMap(textures.toSlice()[norm].?);
                     }
 
-                    o.mesh_renderer.?.materials[j].specular_size = scene_file_f32[offset+0];
-                    o.mesh_renderer.?.materials[j].specular_intensity = scene_file_f32[offset+1];
-                    o.mesh_renderer.?.materials[j].specular_colourisation = scene_file_f32[offset+2];
+                    o.mesh_renderer.?.materials[j].specular_size = scene_file_f32[offset + 0];
+                    o.mesh_renderer.?.materials[j].specular_intensity = scene_file_f32[offset + 1];
+                    o.mesh_renderer.?.materials[j].specular_colourisation = scene_file_f32[offset + 2];
                     offset += 3;
                 }
             }
         }
 
-        if(has_light) {
+        if (has_light) {
             const light_type_ = scene_file_u32[offset];
             offset += 1;
 
             var light_type: render.Light.LightType = undefined;
-            if(light_type_ == 0) {
+            if (light_type_ == 0) {
                 light_type = render.Light.LightType.Point;
-            }
-            else if(light_type_ == 1) {
+            } else if (light_type_ == 1) {
                 light_type = render.Light.LightType.Spotlight;
-            }
-            else {
+            } else {
                 light_type = render.Light.LightType.Directional;
             }
 
             const r = scene_file_f32[offset];
-            const g = scene_file_f32[offset+1];
-            const b = scene_file_f32[offset+2];
+            const g = scene_file_f32[offset + 1];
+            const b = scene_file_f32[offset + 2];
 
-            const cast_shadows = scene_file_f32[offset+3] != 0;
+            const cast_shadows = scene_file_f32[offset + 3] != 0;
 
-            const clip_start = scene_file_f32[offset+4];
-            const clip_end = scene_file_f32[offset+5];
+            const clip_start = scene_file_f32[offset + 4];
+            const clip_end = scene_file_f32[offset + 5];
 
             offset += 6;
 
             var angle: f32 = 0;
-            if(light_type == render.Light.LightType.Spotlight) {
+            if (light_type == render.Light.LightType.Spotlight) {
                 angle = scene_file_f32[offset];
                 offset += 1;
             }
-            
+
             o.*.light = render.Light{
                 .light_type = light_type,
                 .angle = angle,
@@ -276,15 +270,12 @@ pub fn loadSceneFromFile(file_data: [] align(4) const u8, assets_list: []Asset, 
             };
         }
 
-        if(parent != 0xffffffff and parent < objects_list.count()-1) {
+        if (parent != 0xffffffff and parent < objects_list.count() - 1) {
             try objects_list.toSlice()[parent].*.addChild(o);
-        }
-        else {
+        } else {
             try root_object.addChild(o);
         }
     }
 
-
     return root_object;
-
 }

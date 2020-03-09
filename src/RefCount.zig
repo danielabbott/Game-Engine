@@ -21,11 +21,11 @@ pub const ReferenceCounter = struct {
     }
 
     pub fn set(comptime T: type, old: *(?*T), new: ?*T) void {
-        if(old.* != null) {
+        if (old.* != null) {
             old.*.?.ref_count.dec();
         }
         old.* = new;
-        if(new != null) {
+        if (new != null) {
             new.?.ref_count.inc();
         }
     }

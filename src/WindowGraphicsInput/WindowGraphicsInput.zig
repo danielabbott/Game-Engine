@@ -20,7 +20,7 @@ pub const Constants = @import("Constants.zig");
 
 pub const GraphicsAPI = enum {
     GL33,
-    D3D11
+    D3D11,
 };
 
 pub fn getGraphicsAPI() GraphicsAPI {
@@ -32,10 +32,10 @@ pub fn disableDepthTesting() void {
 }
 
 pub fn enableDepthWriting() void {
-    c.glDepthMask (c.GL_TRUE);
+    c.glDepthMask(c.GL_TRUE);
 }
 pub fn disableDepthWriting() void {
-    c.glDepthMask (c.GL_FALSE);
+    c.glDepthMask(c.GL_FALSE);
 }
 
 // setDepthMode functions enable depth testing
@@ -64,19 +64,17 @@ pub fn cullFace(mode: CullFaceMode) void {
 // Individual values are meaningless - use for time deltas
 pub fn getMicroTime() u64 {
     const freq = c.glfwGetTimerFrequency();
-    if(freq == 0) {
-       return 0;
+    if (freq == 0) {
+        return 0;
     }
-    if(freq % 10 == 0) {
-        if(freq < 1000000) {
+    if (freq % 10 == 0) {
+        if (freq < 1000000) {
             return c.glfwGetTimerValue() * (1000000 / freq);
-        }
-        else {
+        } else {
             // Same calulation but the alternative code would just produce 0
             return c.glfwGetTimerValue() / (freq / 1000000);
         }
-    }
-    else {
+    } else {
         const m = 1000000.0 / @intToFloat(f64, freq);
         return @floatToInt(u64, @intToFloat(f64, c.glfwGetTimerValue()) * m);
     }
