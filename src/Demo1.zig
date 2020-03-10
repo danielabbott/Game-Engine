@@ -78,6 +78,8 @@ fn assetLoaded(a: *Asset) void {
 }
 
 pub fn main() !void {
+    errdefer @import("ErrorDialog.zig").showErrorMessageDialog(c"Fatal Error", c"An error has occurred.");
+
     // Specify root folder for assets
     assets.setAssetsDirectory("DemoAssets" ++ Files.path_seperator);
 

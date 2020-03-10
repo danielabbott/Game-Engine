@@ -62,6 +62,8 @@ fn assetLoaded(a: *Asset) void {
 }
 
 pub fn main() !void {
+    errdefer @import("ErrorDialog.zig").showErrorMessageDialog(c"Fatal Error", c"An error has occurred.");
+    
     assets.setAssetsDirectory("DemoAssets" ++ Files.path_seperator);
 
     var assets_list = std.ArrayList(Asset).init(c_allocator);
