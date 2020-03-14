@@ -176,11 +176,11 @@ layout(std140) uniform UniformData {
 				float d = t - ex;
 				float x = variance2 / (variance2 + d*d);
 
-				// TODO make shadows darker near the obstructor if possible
-
-				x = 1.11*pow(10.0, -16.0) + 1.5*x - 1.6*x*x + 1.07*x*x*x;
-
-				return smoothstep(0.0, 1.0, clamp(x, 0.0, 1.0));
+				x = clamp(x, 0.45, 1.0);
+				// increase darks, decrease lights
+				x=1.11*pow(10.0, -16.0) + 1.5*x - 1.6*x*x + 1.07*x*x*x;
+				
+				return clamp(x, 0.0, 1.0);
 			}
 			else {
 				// Fully lit
