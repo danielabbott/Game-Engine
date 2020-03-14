@@ -1,4 +1,4 @@
-# Custom file format for mesh animations
+# Custom file format for scene files
 
 Field Name | Field Type | Description
 ---------- | ---------- | -----------
