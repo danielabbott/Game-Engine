@@ -295,7 +295,6 @@ pub const ModelData = struct {
     }
 
     // utf8 string is u8 length (bytes) followed by string data
-    // TODO optimise. according to callgrind this is a big eater of CPU time
     pub fn getMaterial(self: *ModelData, i: u32, first_index: *u32, index_vertex_count: *u32, default_colour: *([3]f32), utf8_name: *([]const u8)) !void {
         if (i >= self.material_count) {
             return error.NoSuchMaterial;

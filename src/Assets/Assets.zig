@@ -50,8 +50,7 @@ pub const Asset = struct {
         Freed, // Data has been freed
     };
 
-    // TODO: Should this be a pointer?
-    file_path: [32]u8,
+    file_path: [64]u8,
     file_path_len: u32,
 
     asset_type: AssetType,
@@ -87,7 +86,7 @@ pub const Asset = struct {
     // file_path_ is copied into the returned Asset struct
     // Don't forget to set the relvant configuration variables
     pub fn init(file_path_: []const u8) !Asset {
-        if (file_path_.len > 32) {
+        if (file_path_.len > 64) {
             return error.PathTooLong;
         }
 
@@ -343,6 +342,7 @@ pub fn startAssetLoader_(assets_list: ?([]Asset), allocator: *std.mem.Allocator)
     abort_load.set(0);
 
     errdefer abort_load.set(1);
+
     _ = try std.Thread.spawn(allocator, fileLoader);
     _ = try std.Thread.spawn(allocator, assetDecompressor);
 }

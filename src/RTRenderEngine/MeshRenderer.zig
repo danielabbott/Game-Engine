@@ -288,21 +288,42 @@ pub const MeshRenderer = struct {
             }
         }
 
-        // TODO: Merge into one draw call where possible
+        var first_index: u32 = 0;
+        var index_count: u32 = 0;
+        var utf8_name: []const u8 = undefined;
+        var colour: [3]f32 = undefined;
         var i: u32 = 0;
         while (i < self.mesh.?.model.material_count and i < 32) : (i += 1) {
-            var first_index: u32 = undefined;
-            var index_count: u32 = undefined;
-            var utf8_name: []const u8 = undefined;
-            var colour: [3]f32 = undefined;
-            self.mesh.?.model.getMaterial(i, &first_index, &index_count, &colour, &utf8_name) catch break;
+            var first_index_: u32 = undefined;
+            var index_count_: u32 = undefined;
+            self.mesh.?.model.getMaterial(i, &first_index_, &index_count_, &colour, &utf8_name) catch break;
 
-            if (index_count > 0) {
-                if (self.mesh.?.index_data_buffer == null) {
-                    try self.vao.draw(VertexMeta.PrimitiveType.Triangles, first_index, index_count);
-                } else {
-                    try self.vao.drawWithIndices(VertexMeta.PrimitiveType.Triangles, self.mesh.?.model.vertex_count > 65536, first_index, index_count);
+            var do_draw: bool = false;
+
+            if(first_index_ == first_index + index_count) {
+                index_count += index_count_;
+                if(i < self.mesh.?.model.material_count-1 and i < 32-1) {
+                    continue;
                 }
+                else {
+                    do_draw = true;
+                }
+            }
+            else {
+                do_draw = true;
+            }
+
+            if(do_draw) {
+                if (index_count > 0) {
+                    if (self.mesh.?.index_data_buffer == null) {
+                        try self.vao.draw(VertexMeta.PrimitiveType.Triangles, first_index, index_count);
+                    } else {
+                        try self.vao.drawWithIndices(VertexMeta.PrimitiveType.Triangles, self.mesh.?.model.vertex_count > 65536, first_index, index_count);
+                    }
+                }
+
+                first_index = first_index_;
+                index_count = index_count_;
             }
         }
     }
