@@ -226,7 +226,7 @@ pub const ShaderProgram = struct {
         return loc;
     }
 
-    pub fn setUniform1i(self: *ShaderProgram, location: i32, data: i32) !void {
+    pub fn setUniform1i(self: ShaderProgram, location: i32, data: i32) !void {
         if (location == -1) {
             assert(false);
             return error.InvalidParameter;

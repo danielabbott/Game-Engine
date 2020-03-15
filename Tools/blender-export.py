@@ -11,12 +11,11 @@
 
 # CONFIGURATION
 
-EXPORT_FILE = '' # if set to '' will use the blend file name but change '.blend' to '.model'
-EXPORT_BONES = True
-EXPORT_TEX_COORDS = True
+EXPORT_FILE = 'C:/Users/dabbo/GameEngine/DemoAssets/FarmStatic.model' # if set to '' will use the blend file name but change '.blend' to '.model'
+EXPORT_BONES = False
+EXPORT_TEX_COORDS = False
 #EXPORT_INTERLEAVED = True# TODO
-EXPORT_FLAT_SHADING = False
-EXPORT_TANGENTS = True # Needed for normal maps
+EXPORT_TANGENTS = False # Needed for normal maps
 
 
 # IMPORTS
@@ -36,7 +35,6 @@ def main():
 	global EXPORT_FILE
 	global EXPORT_BONES
 	global EXPORT_TEX_COORDS
-	global EXPORT_FLAT_SHADING
 	global EXPORT_TANGENTS
 	global file
 
@@ -121,8 +119,6 @@ def main():
 	i = 0
 	for obj in bpy.data.objects:
 		if hasattr(obj.data, 'polygons'):
-			if EXPORT_FLAT_SHADING:
-				obj.data.calc_normals()
 			if EXPORT_TANGENTS:
 				obj.data.calc_tangents()
 			
@@ -133,10 +129,7 @@ def main():
 				v.visited = False
 				v.obj = obj
 				v.co = vertex.co
-				if not EXPORT_FLAT_SHADING:
-					v.normal = vertex.normal
-				else:
-					v.normal = None
+				v.normal = vertex.normal
 
 				# UV coordinates are not stored per-vertex in blender
 				# They are added to our vertex objects later in the script
@@ -187,19 +180,13 @@ def main():
 					uv = obj.data.uv_layers.active.data[polygonLoopIndices[j]].uv if obj.data.uv_layers.active is not None else None
 					v = vertices[objVertexOffsets[i] + vertex]
 
-					if EXPORT_FLAT_SHADING and v.normal == None:
-						v.normal = polygon.normal
-
 					def newVertex():
 						indices.append(len(vertices))
 						newVerticies_listIndex.append(len(vertices))
 						newVertices_originalVertexIndex.append(objVertexOffsets[i] + vertex)
 						newVertex = Vertex()
 						newVertex.co = v.co
-						if EXPORT_FLAT_SHADING:
-							newVertex.normal = polygon.normal
-						else:
-							newVertex.normal = v.normal
+						newVertex.normal = v.normal
 						newVertex.uv = uv
 						newVertex.obj = obj
 						newVertex.tangent = thisPolyTangent
@@ -207,27 +194,24 @@ def main():
 						newVertex.biTangentMul = biTangentMul
 						vertices.append(newVertex)	
 						
-					if EXPORT_FLAT_SHADING and v.normal != polygon.normal:
-						newVertex()
-					else:
-						if (uv is None) or not EXPORT_TEX_COORDS:
-							v.tangent = v.tangent + thisPolyTangent
-							v.tangentN += 1
-							v.biTangentMul = biTangentMul
-							indices.append(objVertexOffsets[i] + vertex)
-						elif v.uv is None:
-							v.uv = uv
-							v.tangent = v.tangent + thisPolyTangent
-							v.tangentN += 1
-							v.biTangentMul = biTangentMul
-							indices.append(objVertexOffsets[i] + vertex)
-						elif v.uv[0] == uv.x and v.uv[1] == uv.y:
-							v.tangent = v.tangent + thisPolyTangent
-							v.tangentN += 1
-							v.biTangentMul = biTangentMul
-							indices.append(objVertexOffsets[i] + vertex)
-						else:						
-							newVertex()	
+					if (uv is None) or not EXPORT_TEX_COORDS:
+						v.tangent = v.tangent + thisPolyTangent
+						v.tangentN += 1
+						v.biTangentMul = biTangentMul
+						indices.append(objVertexOffsets[i] + vertex)
+					elif v.uv is None:
+						v.uv = uv
+						v.tangent = v.tangent + thisPolyTangent
+						v.tangentN += 1
+						v.biTangentMul = biTangentMul
+						indices.append(objVertexOffsets[i] + vertex)
+					elif v.uv[0] == uv.x and v.uv[1] == uv.y:
+						v.tangent = v.tangent + thisPolyTangent
+						v.tangentN += 1
+						v.biTangentMul = biTangentMul
+						indices.append(objVertexOffsets[i] + vertex)
+					else:						
+						newVertex()	
 					v.visited = True				
 						
 					j += 1

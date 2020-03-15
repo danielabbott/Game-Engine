@@ -66,6 +66,7 @@ pub const ShaderInstance = struct {
     specular_size_location: ?i32 = null,
     specular_intensity_location: ?i32 = null,
     specular_colouration_location: ?i32 = null,
+    flat_shading_location: ?i32 = null,
 
     pub fn getShader(config_: ShaderInstance.ShaderConfig, allocator: *std.mem.Allocator) !*const ShaderInstance {
         var config = config_;
@@ -302,6 +303,7 @@ pub const ShaderInstance = struct {
         self.specular_intensity_location = self.shader_program.getUniformLocation(c"specularIntensity") catch null;
         self.specular_size_location = self.shader_program.getUniformLocation(c"specularSize") catch null;
         self.specular_colouration_location = self.shader_program.getUniformLocation(c"specularColouration") catch null;
+        self.flat_shading_location = self.shader_program.getUniformLocation(c"flatShading") catch null;
 
         const texLoc = self.shader_program.getUniformLocation(c"main_texture") catch null;
         if (texLoc != null) {
@@ -455,6 +457,13 @@ pub const ShaderInstance = struct {
             try self.shader_program.setUniform1f(self.specular_colouration_location.?, c);
         }
     }
+
+    pub fn setFlatShadingEnabled(self: ShaderInstance, enabled: bool) !void {
+        if (self.flat_shading_location != null) {
+            try self.shader_program.setUniform1i(self.flat_shading_location.?, @boolToInt(enabled));
+        }
+    }
+    
 
     // Used during development to detect shader performance problems
     pub fn validate(self: ShaderInstance, allocator: *std.mem.Allocator) void {

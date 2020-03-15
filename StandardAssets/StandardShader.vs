@@ -38,7 +38,7 @@ in vec3 in_coords;
 		out vec2 pass_texture_coordinates;
 	#endif
 
-	#if defined(HAS_NORMALS) && MAX_FRAGMENT_LIGHTS > 0
+	#if MAX_FRAGMENT_LIGHTS > 0
 		#ifndef NORMAL_MAP
 			out vec3 pass_normal;
 		#endif
@@ -145,6 +145,11 @@ void main() {
 		pass_colour = object_colour;
 	#endif
 
+	vec3 pos = (model_matrix * coordinates).xyz;
+	#if MAX_FRAGMENT_LIGHTS > 0
+		pass_position = pos;
+	#endif
+
 	#ifdef HAS_NORMALS
 		#ifdef ENABLE_NON_UNIFORM_SCALE
 			vec3 normalWorldSpace = normalize(normalMatrix * normal);
@@ -161,14 +166,12 @@ void main() {
 			#endif
 		#endif
 
-		vec3 pos = (model_matrix * coordinates).xyz;
 
 		#if MAX_FRAGMENT_LIGHTS > 0
 			#ifndef NORMAL_MAP
 				pass_normal = normalWorldSpace;
 			#endif
 			
-			pass_position = pos;
 
 			#ifdef ENABLE_SHADOWS
 				#if MAX_FRAGMENT_LIGHTS == 1

@@ -222,7 +222,8 @@ pub fn loadSceneFromFile(file_data: []align(4) const u8, assets_list: []Asset, a
                     o.mesh_renderer.?.materials[j].specular_size = scene_file_f32[offset + 0];
                     o.mesh_renderer.?.materials[j].specular_intensity = scene_file_f32[offset + 1];
                     o.mesh_renderer.?.materials[j].specular_colourisation = scene_file_f32[offset + 2];
-                    offset += 3;
+                    o.mesh_renderer.?.materials[j].flat_shading = scene_file_u32[offset + 3] != 0;
+                    offset += 4;
                 }
             }
         }

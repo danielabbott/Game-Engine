@@ -6,14 +6,17 @@ uniform sampler2D main_texture; // texture unit 0
 uniform sampler2D texture_normal_map; // texture unit 1
 #endif
 
-#if defined(HAS_NORMALS) && MAX_FRAGMENT_LIGHTS > 0
-	#ifndef NORMAL_MAP
+// If HAS_NORMALS is false and lighting is enabled then flat shading is used regardless of this setting
+uniform bool flatShading = true;
+
+#if MAX_FRAGMENT_LIGHTS > 0
+	#if !defined(NORMAL_MAP) && defined(HAS_NORMALS)
 		in vec3 pass_normal;
 	#endif
 
 	in vec3 pass_position;
 
-	#ifdef NORMAL_MAP
+	#if defined(NORMAL_MAP) && defined(HAS_NORMALS)
 		in mat3 pass_tangentToWorld;
 	#endif
 #endif
@@ -31,11 +34,10 @@ out vec3 outColour;
 void main() { 
 	vec3 colour = pass_colour;
 
-	#if MAX_FRAGMENT_LIGHTS == 0 || !defined(HAS_NORMALS)
+	#if MAX_FRAGMENT_LIGHTS == 0
 		// No lighting calulations to be done, use light value from vertex shader
 		colour *= pass_light;
 	#else
-
 
 		#ifdef NORMAL_MAP
 			vec3 tangentSpaceV = texture(texture_normal_map, pass_texture_coordinates).xyz * 2.0 - 1.0;
@@ -45,7 +47,22 @@ void main() {
 			colour *= apply_lighting(pass_light, pass_position, n);
 			
 		#else
-			colour *= apply_lighting(pass_light, pass_position, pass_normal);
+			vec3 normal;
+
+			#ifdef HAS_NORMALS
+				if(flatShading) {
+			#endif
+				// Normal of the face
+				// Uses the change in world space position between fragments to calculate the normal
+				normal = normalize(cross(dFdx(pass_position), dFdy(pass_position)));
+			#ifdef HAS_NORMALS
+				}
+				else {
+					normal = pass_normal;
+				}
+			#endif
+			
+			colour *= apply_lighting(pass_light, pass_position, normal);
 		#endif
 
 	#endif

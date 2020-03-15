@@ -73,6 +73,8 @@ pub const MeshRenderer = struct {
         specular_size: f32 = 0.05, // 0 - 1
         specular_intensity: f32 = 1.0,
         specular_colourisation: f32 = 0.025, // 0 = white, 1 = colour of light source
+
+        flat_shading: bool = false,
     };
 
     // Use as few materials as possible to reduce draw calls
@@ -229,6 +231,7 @@ pub const MeshRenderer = struct {
             try shader.setSpecularIntensity(self.materials[i].specular_intensity);
             try shader.setSpecularSize(self.materials[i].specular_size);
             try shader.setSpecularColouration(self.materials[i].specular_colourisation);
+            try shader.setFlatShadingEnabled(self.materials[i].flat_shading);
 
             var first_index: u32 = undefined;
             var index_vertex_count: u32 = undefined;

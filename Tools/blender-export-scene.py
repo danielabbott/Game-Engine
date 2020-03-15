@@ -1,7 +1,8 @@
-EXPORT_FILE = ''
-AMBIENT = (0.3, 0.3, 0.3)
-CLEAR_COLOUR = (0.68, 0.87, 1.0)
+EXPORT_FILE = 'C:/Users/dabbo/GameEngine/DemoAssets/Farm.scene'
+AMBIENT = (0.1, 0.1, 0.15)
+CLEAR_COLOUR = (0.1, 0.1, 0.15)
 USING_COMPRESSED_MODELS = True # if true, model file names are *.model.compressed
+USE_FLAT_SHADING = True # Set all objects to use flat (per-face) shading
 
 import bpy
 import struct
@@ -163,6 +164,7 @@ for obj in objects:
 		writeFloat(f, 0.05) # specular size
 		writeFloat(f, 1.00) # specular intensity
 		writeFloat(f, 0.025) # specular colourisation
+		writeDWord(f, 1 if USE_FLAT_SHADING else 0)
 
 # lights
 
@@ -189,7 +191,7 @@ for obj in lights:
 
 	writeDWord(f, 1) # cast shadows
 	writeFloat(f, obj.shadow_buffer_clip_start)
-	writeFloat(f, obj.shadow_buffer_clip_end)
+	writeFloat(f, obj.shadow_cascade_max_distance)
 
 	if obj.type == 'SPOT':
 		writeFloat(f, obj.spot_size)
