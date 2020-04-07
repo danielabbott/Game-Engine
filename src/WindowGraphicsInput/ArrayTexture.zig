@@ -3,6 +3,7 @@ const assert = std.debug.assert;
 const mem = std.mem;
 const window = @import("Window.zig");
 const img = @import("Image.zig");
+const Texture2D = img.Texture2D;
 const MinFilter = img.MinFilter;
 const ArrayList = std.ArrayList;
 const c_allocator = std.heap.c_allocator;
@@ -32,7 +33,14 @@ pub const Texture2DArray = struct {
     height: u32,
     layers: u32,
     imageType: img.ImageType,
-    frameBufferIds: ArrayList(u32),
+
+    // createFramebuffers()
+    // One framebuffer per texture layer
+    frame_buffer_ids: ArrayList(u32),
+
+    // createFramebuffer()
+    // One framebuffer with each texture layer attatched
+    frame_buffer_id: u32,
 
     pub fn init(smooth_when_magnified: bool, min_filter: MinFilter) !Texture2DArray {
         return Texture2DArray{
@@ -41,21 +49,29 @@ pub const Texture2DArray = struct {
             .height = 0,
             .layers = 0,
             .imageType = img.ImageType.RGBA,
-            .frameBufferIds = ArrayList(u32).init(c_allocator),
+            .frame_buffer_ids = ArrayList(u32).init(c_allocator),
+            .frame_buffer_id = 0,
         };
     }
 
-    fn createFrameBufferIds(self: *Texture2DArray) !void {
-        try self.frameBufferIds.resize(self.layers);
+    fn createframe_buffer_ids(self: *Texture2DArray) !void {
+        const start = self.frame_buffer_ids.count();
+        const numToCreate = self.layers - start;
 
-        for (self.frameBufferIds.toSlice()) |*id| {
+        if(numToCreate < 1) {
+            return;
+        }
+
+        try self.frame_buffer_ids.resize(self.layers);
+
+        for (self.frame_buffer_ids.toSlice()[start..]) |*id| {
             id.* = 0;
         }
 
-        c.glGenFramebuffers(@intCast(c_int, self.layers), @ptrCast([*c]c_uint, self.frameBufferIds.toSlice().ptr));
+        c.glGenFramebuffers(@intCast(c_int, numToCreate), @ptrCast([*c]c_uint, self.frame_buffer_ids.toSlice()[start..].ptr));
 
         var allIdsNon0: bool = true;
-        for (self.frameBufferIds.toSlice()) |id| {
+        for (self.frame_buffer_ids.toSlice()[start..]) |id| {
             if (id == 0) {
                 allIdsNon0 = false;
                 break;
@@ -63,7 +79,7 @@ pub const Texture2DArray = struct {
         }
 
         if (!allIdsNon0) {
-            c.glDeleteFramebuffers(@intCast(c_int, self.layers), @ptrCast([*c]c_uint, self.frameBufferIds.toSlice().ptr));
+            c.glDeleteFramebuffers(@intCast(c_int, self.layers), @ptrCast([*c]c_uint, self.frame_buffer_ids.toSlice()[start..].ptr));
             return error.OpenGLError;
         }
     }
@@ -74,9 +90,9 @@ pub const Texture2DArray = struct {
             return error.InvalidState;
         }
 
-        try self.createFrameBufferIds();
+        try self.createframe_buffer_ids();
 
-        for (self.frameBufferIds.toSlice()) |id, i| {
+        for (self.frame_buffer_ids.toSlice()) |id, i| {
             c.glBindFramebuffer(c.GL_FRAMEBUFFER, id);
 
             c.glFramebufferTextureLayer(c.GL_FRAMEBUFFER, c.GL_COLOR_ATTACHMENT0, self.id, 0, @intCast(c_int, i));
@@ -97,13 +113,73 @@ pub const Texture2DArray = struct {
         }
     }
 
+    pub fn createFrameBuffer(self: *Texture2DArray, depth_texture: ?*Texture2D) !void {
+        if (self.id == 0 or self.width <= 0 or self.height <= 0 or self.layers <= 0) {
+            assert(false);
+            return error.InvalidState;
+        }
+
+        if(self.layers > 8) {
+            return error.TooManyLayers;
+        }
+
+        // Create FBO
+
+        c.glGenFramebuffers(1, @ptrCast([*c]c_uint, &self.frame_buffer_id));
+        if(self.frame_buffer_id == 0) {
+            return error.OpenGLError;
+        }
+        errdefer {
+            c.glDeleteFramebuffers(1, @ptrCast([*c]c_uint, &self.frame_buffer_id));
+            self.frame_buffer_id = 0;
+        }
+
+        // Bind and configure FBO
+
+        c.glBindFramebuffer(c.GL_FRAMEBUFFER, self.frame_buffer_id);
+
+        const drawBuffers = [8]c_uint{ c.GL_COLOR_ATTACHMENT0,c.GL_COLOR_ATTACHMENT1,
+            c.GL_COLOR_ATTACHMENT2,c.GL_COLOR_ATTACHMENT3,c.GL_COLOR_ATTACHMENT4,c.GL_COLOR_ATTACHMENT5,
+            c.GL_COLOR_ATTACHMENT6,c.GL_COLOR_ATTACHMENT7 };
+        c.glDrawBuffers(@intCast(c_int, self.layers), drawBuffers[0..].ptr);
+
+        var i: u32 = 0;
+        while(i < self.layers) : (i += 1) {
+            c.glFramebufferTextureLayer(c.GL_FRAMEBUFFER, c.GL_COLOR_ATTACHMENT0+i, self.id, 0, @intCast(c_int, i));
+        }
+
+        if(depth_texture != null) {
+            c.glFramebufferTexture2D(c.GL_FRAMEBUFFER, c.GL_DEPTH_ATTACHMENT, c.GL_TEXTURE_2D, depth_texture.?.id, 0);
+        }
+
+        // Validate framebuffer
+
+        if (c.glCheckFramebufferStatus(c.GL_FRAMEBUFFER) != c.GL_FRAMEBUFFER_COMPLETE) {
+            assert(false);
+            return error.OpenGLError;
+        }
+
+        c.glBindFramebuffer(c.GL_FRAMEBUFFER, 0);
+        
+    }
+
+    pub fn bindFrameBuffer2(self: Texture2DArray) !void {
+        if (self.frame_buffer_id == 0) {
+            assert(false);
+            return error.InvalidState;
+        }
+
+        c.glBindFramebuffer(c.GL_FRAMEBUFFER, self.frame_buffer_id);
+        c.glViewport(0, 0, @intCast(c_int, self.width), @intCast(c_int, self.height));
+    }
+
     pub fn bindFrameBuffer(self: Texture2DArray, index: u32) !void {
         if (index >= self.layers) {
             assert(false);
             return error.InvalidParameter;
         }
 
-        c.glBindFramebuffer(c.GL_FRAMEBUFFER, self.frameBufferIds.at(index));
+        c.glBindFramebuffer(c.GL_FRAMEBUFFER, self.frame_buffer_ids.at(index));
         c.glViewport(0, 0, @intCast(c_int, self.width), @intCast(c_int, self.height));
     }
 
@@ -179,10 +255,10 @@ pub const Texture2DArray = struct {
         }
         self.ref_count.deinit();
 
-        if (self.frameBufferIds.count() > 0) {
-            c.glDeleteFramebuffers(@intCast(c_int, self.frameBufferIds.len), @ptrCast([*c]const c_uint, self.frameBufferIds.toSlice().ptr));
+        if (self.frame_buffer_ids.count() > 0) {
+            c.glDeleteFramebuffers(@intCast(c_int, self.frame_buffer_ids.len), @ptrCast([*c]const c_uint, self.frame_buffer_ids.toSlice().ptr));
         }
-        self.frameBufferIds.deinit();
+        self.frame_buffer_ids.deinit();
 
         c.glDeleteTextures(1, @ptrCast([*c]const c_uint, &self.id));
         self.id = 0;
@@ -196,7 +272,7 @@ pub const Texture2DArray = struct {
 
         if (c.GL_ARB_clear_texture != 0) {
             c.glClearTexSubImage(self.id, 0, 0, 0, @intCast(c_int, index), @intCast(c_int, self.width), @intCast(c_int, self.height), 1, c.GL_RGBA, c.GL_FLOAT, colour[0..4].ptr);
-        } else if (self.frameBufferIds.count() > 0) {
+        } else if (self.frame_buffer_ids.count() > 0) {
             try self.bindFrameBuffer(index);
             window.setClearColour(colour[0], colour[1], colour[2], colour[3]);
             window.clear(true, false);

@@ -509,7 +509,7 @@ pub fn render(root_object: *Object, micro_time: u64, allocator: *Allocator) !voi
     try uniform_buffer.?.bindUniform(1, 0, uniform_buffer.?.data_size);
     try uniform_buffer.?.bindBufferBase(1);
 
-    wgi.setDepthModeDirectX();
+    wgi.setDepthModeDirectX(false, false);
     wgi.enableDepthWriting();
     window.setCullMode(window.CullMode.AntiClockwise);
     window.setClearColour(getSettings().clear_colour[0], getSettings().clear_colour[1], getSettings().clear_colour[2], 1.0);

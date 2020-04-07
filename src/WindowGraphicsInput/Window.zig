@@ -113,7 +113,7 @@ pub fn createWindow(fullscreen: bool, width: u32, height: u32, title: [*]const u
 
     c.glEnable(c.GL_DEPTH_TEST);
     // Switch to optimal depth buffer configuration
-    wgi.setDepthModeDirectX();
+    wgi.setDepthModeDirectX(false, false);
 
     c.glViewport(0, 0, @intCast(c_int, width), @intCast(c_int, height));
     c.glClearColor(0.1, 0.1, 0.1, 1.0);

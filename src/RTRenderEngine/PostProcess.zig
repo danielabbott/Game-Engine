@@ -43,8 +43,8 @@ fn createShaderProgram(allocator: *std.mem.Allocator) !void {
 
 fn createResources(window_width: u32, window_height: u32, allocator: *std.mem.Allocator) !void {
     if (fbo == null) {
-        fbo = try FrameBuffer.init(wgi.ImageType.RG11FB10F, window_width, window_height, FrameBuffer.DepthType.F32);
-    } else if (fbo.?.texture.?.width != window_width or fbo.?.texture.?.height != window_height) {
+        fbo = try FrameBuffer.init(wgi.ImageType.RG11FB10F, window_width, window_height, FrameBuffer.DepthType.F32, allocator);
+    } else if (fbo.?.textures[0].?.width != window_width or fbo.?.textures[0].?.height != window_height) {
         try fbo.?.resize(window_width, window_height);
     }
 

@@ -102,7 +102,7 @@ pub const Light = struct {
         }
 
         if (self.depth_framebuffer == null) {
-            self.depth_framebuffer = FrameBuffer.init(null, self.shadow_resolution_width, shadow_resolution_height, FrameBuffer.DepthType.I16) catch null;
+            self.depth_framebuffer = FrameBuffer.init(null, self.shadow_resolution_width, shadow_resolution_height, FrameBuffer.DepthType.I16, allocator) catch null;
 
             if (self.depth_framebuffer == null) {
                 self.cast_realtime_shadows = false;
@@ -113,7 +113,7 @@ pub const Light = struct {
         }
 
         if (self.average_depth_framebuffer == null) {
-            self.average_depth_framebuffer = FrameBuffer.init(ImageType.RG32F, self.shadow_resolution_width / 16, shadow_resolution_height / 16, FrameBuffer.DepthType.None) catch null;
+            self.average_depth_framebuffer = FrameBuffer.init(ImageType.RG32F, self.shadow_resolution_width / 16, shadow_resolution_height / 16, FrameBuffer.DepthType.None, allocator) catch null;
 
             if (self.average_depth_framebuffer == null) {
                 self.cast_realtime_shadows = false;
@@ -141,7 +141,7 @@ pub const Light = struct {
         window.setCullMode(window.CullMode.AntiClockwise);
         wgi.cullFace(wgi.CullFaceMode.Back);
         wgi.enableDepthWriting();
-        wgi.setDepthModeDirectX();
+        wgi.setDepthModeDirectX(false, false);
         window.clear(false, true);
 
         renderObjects(root_object, allocator, &view_matrix, &projection_matrix.?, true);

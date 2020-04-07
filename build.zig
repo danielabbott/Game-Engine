@@ -64,7 +64,7 @@ pub fn build(b: *Builder) void {
     const test_step = b.step("test", "Run all tests");
 
     const demo_step = b.step("Demos", "Build Demos");
-    inline for ([_][]const u8{ "Demo1", "Demo2" }) |demo_name| {
+    inline for ([_][]const u8{ "Demo1", "Demo2", "Demo3" }) |demo_name| {
         const f = "src/" ++ demo_name ++ ".zig";
         const exe = b.addExecutable(demo_name, f);
         exe.setBuildMode(mode);

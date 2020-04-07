@@ -22,7 +22,10 @@ pub const image_type_base_internal_formats = [_]u32{
     c.GL_RG,
     c.GL_RGB,
     c.GL_RGBA,
+    c.GL_RED,
+    c.GL_RG,
     c.GL_RGB,
+    c.GL_RGBA,
     c.GL_RGB,
 };
 
@@ -40,7 +43,10 @@ pub const image_type_sized_internal_formats = [_]u32{
     c.GL_RG32F,
     c.GL_RGB32F,
     c.GL_RGBA32F,
+    c.GL_R16F,
+    c.GL_RG16F,
     c.GL_RGB16F,
+    c.GL_RGBA16F,
     c.GL_R11F_G11F_B10F,
 };
 
@@ -58,7 +64,10 @@ pub const ImageType = enum {
     RG32F,
     RGB32F,
     RGBA32F,
+    R16F,
+    RG16F,
     RGB16F,
+    RGBA16F,
     RG11FB10F,
 };
 
@@ -289,7 +298,7 @@ pub const Texture2D = struct {
         var tex = try Texture2D.init(smooth_when_magnified, min_filter);
         errdefer tex.free();
         const file_data = try files.loadFile(file_path, allocator);
-        defer files.freeLoadedFile(file_data, allocator);
+        defer allocator.free(file_data);
 
         var w: i32 = undefined;
         var h: i32 = undefined;
@@ -329,7 +338,7 @@ pub const Texture2D = struct {
         errdefer tex.free();
 
         const file_data = try files.loadFile(file_path, allocator);
-        defer files.freeLoadedFile(file_data, allocator);
+        defer allocator.free(file_data);
 
         const file_data_u32: []u32 = @bytesToSlice(u32, file_data);
         if (file_data_u32[0] != 0x62677200 or file_data_u32[1] != 0x32613031) {

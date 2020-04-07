@@ -69,32 +69,19 @@ fn keyCallback(key: i32, scancode: i32, action: i32, mods: i32) void {
     }
 }
 
-fn assetFileLoaded(a: *Asset) void {
-    std.debug.warn("Asset file loaded: {}\n", a.*.file_path[0..a.*.file_path_len]);
-}
-
-fn assetLoaded(a: *Asset) void {
-    std.debug.warn("Asset loaded: {}\n", a.*.file_path[0..a.*.file_path_len]);
-}
-
 pub fn main() !void {
     errdefer @import("ErrorDialog.zig").showErrorMessageDialog(c"Fatal Error", c"An error has occurred.");
 
     // Specify root folder for assets
     assets.setAssetsDirectory("DemoAssets" ++ Files.path_seperator);
 
-    // Loads the scene file
-    // This is a text file which containts a list of assets and game objects
-    const scene_file = try loadFile("DemoAssets" ++ Files.path_seperator ++ "Farm.scene", c_allocator);
-    defer c_allocator.free(scene_file);
-
     var assets_list = std.ArrayList(Asset).init(c_allocator);
     defer assets_list.deinit();
+    try assets_list.resize(1);
 
-    // Gets the assets list from the scene file and creates asset objects
-    try scenes.getAssets(scene_file, &assets_list);
+    var model_asset = &assets_list.toSlice()[0];
 
-    const num_scene_assets = assets_list.count();
+    model_asset.* = try Asset.init("objects.model");
 
     defer { // Free all assets (even if they are being used)
         for (assets_list.toSlice()) |*a| {
@@ -102,20 +89,11 @@ pub fn main() !void {
         }
     }
 
-    for (assets_list.toSlice()) |*a| {
-        a.*.whenFileLoaded = assetFileLoaded;
-        a.*.whenAssetDecoded = assetLoaded;
-    }
-
     try assets.startAssetLoader1(assets_list.toSlice(), c_allocator);
 
-    try window.createWindow(false, 1024, 768, c"Demo 1", true, 0);
+    try window.createWindow(false, 1024, 768, c"Demo 3", true, 0);
     defer window.closeWindow();
     window.setResizeable(true);
-
-    window.loadIcon("DemoAssets" ++ Files.path_seperator ++ "icon.jpg", c_allocator) catch |e| {
-        warn("Error loading icon: {}\n", e);
-    };
 
     input.setKeyCallback(keyCallback);
     input.setMouseButtonCallback(mouseCallback);
@@ -124,16 +102,20 @@ pub fn main() !void {
     defer render.deinit(c_allocator);
 
     const settings = render.getSettings();
-    scenes.getAmbient(scene_file, &settings.*.ambient);
-    scenes.getClearColour(scene_file, &settings.*.clear_colour);
-    std.mem.copy(f32, settings.*.fog_colour[0..3], settings.*.clear_colour);
-    settings.*.fog_colour[3] = 1;
 
     settings.enable_point_lights = false;
-    settings.enable_spot_lights = true;
-    settings.max_fragment_lights = 2;
+    settings.enable_spot_lights = false;
+    settings.enable_directional_lights = true;
+    settings.max_fragment_lights = 1;
     settings.max_vertex_lights = 0;
     settings.enable_specular_light = false;
+    settings.ambient[0] = 0.1;
+    settings.ambient[1] = 0.1;
+    settings.ambient[2] = 0.1;
+    settings.clear_colour[0] = 0.0;
+    settings.clear_colour[1] = 0.0;
+    settings.clear_colour[2] = 0.0;
+    settings.fog_colour[3] = 0.0;
 
     var root_object: render.Object = render.Object.init("root");
     defer root_object.delete(true);
@@ -142,17 +124,21 @@ pub fn main() !void {
     try root_object.addChild(&camera);
     render.setActiveCamera(&camera);
 
-    var spotlight: render.Object = render.Object.init("light");
-    spotlight.light = render.Light{
-        .light_type = render.Light.LightType.Spotlight,
-        .colour = [3]f32{ 100, 100, 100 },
+    var light: render.Object = render.Object.init("light");
+    light.light = render.Light{
+        .light_type = render.Light.LightType.Directional,
+        .colour = [3]f32{ 1, 1, 1 },
         .attenuation = 1,
         .cast_realtime_shadows = true,
-        .shadow_near = 0.5,
-        .shadow_far = 20.0,
+
+        .shadow_near = 1.0,
+        .shadow_far = 100.0,
         .shadow_resolution_width = 1024,
     };
-    //try root_object.addChild(&spotlight);
+    var m = Matrix(f32, 4).rotateX(0.1);
+    m = m.mul(Matrix(f32, 4).rotateY(0.0));
+    light.setTransform(m);
+    try root_object.addChild(&light);
 
     // Wait for game assets to finish loading
     // Keep calling pollEvents() to stop the window freezing
@@ -176,41 +162,20 @@ pub fn main() !void {
         }
     }
 
-    // Load the farm
-
-    const scene = try scenes.loadSceneFromFile(scene_file, assets_list.toSlice()[0..num_scene_assets], c_allocator);
-    try root_object.addChild(scene);
+    var object = render.Object.init("o");
+    var mesh: render.Mesh = try render.Mesh.initFromAsset(model_asset, false);
+    var mesh_renderer = try render.MeshRenderer.init(&mesh, c_allocator);
+    mesh_renderer.enable_per_object_light = false;
+    mesh_renderer.materials[0].flat_shading = true;
+    mesh_renderer.materials[1].flat_shading = true;
+    //mesh_renderer.materials[2].flat_shading = true;
+    object.setMeshRenderer(&mesh_renderer);
+    try root_object.addChild(&object);
 
     // Free assets (data has been uploaded the GPU)
-    // This frees the cpu-side copy of model data and textures which is now stored on the GPU
+    // This frees the cpu-side copy of model data which is now stored on the GPU
     for (assets_list.toSlice()) |*a| {
         a.freeData();
-    }
-
-    const windmill_blades = scene.findChild("Windmill_Blades");
-    if (windmill_blades == null) {
-        return error.NoWindmillBlades;
-    }
-
-    // Copy of the windmill blades default position/rotation/scale
-    const windmill_blades_default_transform = windmill_blades.?.*.transform;
-
-    // Artistic choice
-    windmill_blades.?.mesh_renderer.?.recieve_shadows = false;
-
-    const static_geometry = scene.findChild("FarmStatic");
-    if (static_geometry == null) {
-        return error.NoStaticGeometry;
-    }
-    static_geometry.?.mesh_renderer.?.enable_per_object_light = false;
-
-    const light = scene.findChild("Light");
-    if (light != null) {
-        // These values have been tweaked to provide a near-optimal depth texture
-        // TODO This information should be moved into the scene file
-        light.?.light.?.shadow_width = 54.0;
-        light.?.light.?.shadow_height = 30.0;
-        light.?.light.?.shadow_resolution_width = 1024;
     }
 
     var mouse_pos_prev: [2]i32 = input.getMousePosition();
@@ -299,10 +264,6 @@ pub fn main() !void {
             moveNoUp(-1.875 * deltaTime * speed, 0.0, 0.0);
         }
 
-        var m = Matrix(f32, 4).rotateY(camera_rotation_euler[1]);
-        m = m.mul(Matrix(f32, 4).translate(Vector(f32, 3).init([3]f32{ camera_position[0], camera_position[1] - 0.4, camera_position[2] })));
-        spotlight.setTransform(m);
-
         // Levitation (does not take camera rotation into account)
 
         if (input.isKeyDown(Constants.KEY_SPACE)) {
@@ -323,9 +284,11 @@ pub fn main() !void {
         m = m.mul(Matrix(f32, 4).translate(Vector(f32, 3).init(camera_position)));
         camera.setTransform(m);
 
-        // Use deltaTime to make rotation speed consistent, regardless of frame rate.
-        rotation += deltaTime * 0.1;
-        windmill_blades.?.setTransform(Matrix(f32, 4).rotateZ(rotation).mul(windmill_blades_default_transform));
+        rotation += deltaTime;
+        m = Matrix(f32, 4).rotateX(0.3);
+        m = m.mul(Matrix(f32, 4).translate(Vector(f32, 3).init([3]f32{0.0,0.0,10.0})));
+        m = m.mul(Matrix(f32, 4).rotateY(rotation));
+        light.setTransform(m);
 
         try render.render(&root_object, micro_time, c_allocator);
 

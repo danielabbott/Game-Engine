@@ -1,7 +1,7 @@
 pub const window = @import("Window.zig");
 pub const input = @import("Input.zig");
 pub const c = @import("c.zig").c;
-pub const ArrayTexture = @import("ArrayTexture.zig").ArrayTexture;
+pub const ArrayTexture = @import("ArrayTexture.zig").Texture2DArray;
 pub const CubeMap = @import("CubeMap.zig").CubeMap;
 pub const Buffer = @import("Buffer.zig").Buffer;
 const shdr = @import("Shader.zig");
@@ -40,16 +40,37 @@ pub fn disableDepthWriting() void {
 
 // setDepthMode functions enable depth testing
 
-pub fn setDepthModeDirectX() void {
-    c.glClipControl(c.GL_LOWER_LEFT, c.GL_ZERO_TO_ONE);
-    c.glClearDepth(0.0);
-    c.glDepthFunc(c.GL_GREATER);
+fn setDepthFunc(eql: bool, flip: bool) void {
+    if(eql) {
+        if(flip) {
+            c.glDepthFunc(c.GL_LEQUAL);
+        }
+        else  {
+            c.glDepthFunc(c.GL_GEQUAL);
+        }
+    }
+    else {
+        if(flip) {
+            c.glDepthFunc(c.GL_LESS);
+        }
+        else  {
+            c.glDepthFunc(c.GL_GREATER);
+        }
+    }
 }
 
-pub fn setDepthModeOpenGL() void {
+pub fn setDepthModeDirectX(equal_passes: bool, flip: bool) void {
+    c.glClipControl(c.GL_LOWER_LEFT, c.GL_ZERO_TO_ONE);
+    c.glClearDepth(0.0);
+
+    setDepthFunc(equal_passes, flip);
+}
+
+pub fn setDepthModeOpenGL(equal_passes: bool, flip: bool) void {
     c.glClipControl(c.GL_LOWER_LEFT, c.GL_NEGATIVE_ONE_TO_ONE);
     c.glClearDepth(1.0);
-    c.glDepthFunc(c.GL_LESS);
+
+    setDepthFunc(equal_passes, !flip);
 }
 
 pub const CullFaceMode = enum(u32) {
@@ -59,6 +80,21 @@ pub const CullFaceMode = enum(u32) {
 
 pub fn cullFace(mode: CullFaceMode) void {
     c.glCullFace(@enumToInt(mode));
+}
+pub fn enableAdditiveBlending() void {
+    c.glEnable(c.GL_BLEND);
+    c.glBlendFunc(c.GL_ONE,  c.GL_ONE);
+    c.glBlendEquation(c.GL_FUNC_ADD);
+}
+
+pub fn enableRegularBlending() void {
+    c.glEnable(c.GL_BLEND);
+    c.glBlendFunc(c.GL_SRC_ALPHA, c.GL_ONE_MINUS_SRC_ALPHA);
+    c.glBlendEquation(c.GL_FUNC_ADD);
+}
+
+pub fn disableBlending() void {
+    c.glDisable(c.GL_BLEND);
 }
 
 // Individual values are meaningless - use for time deltas
