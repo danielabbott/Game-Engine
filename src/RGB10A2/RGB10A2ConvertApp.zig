@@ -7,7 +7,7 @@ pub fn main() !void {
     defer std.process.argsFree(c_allocator, args);
 
     if (args.len != 3) {
-        std.debug.warn("Usage: rgb10a2convert [input 48-bit PNG file] [output file]\n");
+        std.debug.warn("Usage: rgb10a2convert [input 48-bit PNG file] [output file]\n", .{});
         return error.InvalidParameters;
     }
 

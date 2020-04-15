@@ -10,12 +10,12 @@ extern fn MessageBoxA(
 
 extern fn strlen(s: [*]const u8) usize;
 pub fn showErrorMessageDialog(title: [*c]const u8, text: [*c]const u8) void {    
-    if(builtin.os == builtin.Os.windows) {
+    if(builtin.os.tag == builtin.Os.Tag.windows) {
         MessageBoxA(0, text, title, 0x10);
     }
     else {
         const titleLen = strlen(title);
         const textLen = strlen(text);
-        std.debug.warn("({}) {}\n", title[0..titleLen], text[0..textLen]);
+        std.debug.warn("({}) {}\n", .{title[0..titleLen], text[0..textLen]});
     }
 }

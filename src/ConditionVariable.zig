@@ -10,11 +10,11 @@ extern fn EnterCriticalSection(*c_void) void;
 extern fn LeaveCriticalSection(*c_void) void;
 extern fn DeleteCriticalSection(*c_void) void;
 
-pub const ConditionVariable = switch (builtin.os) {
+pub const ConditionVariable = switch (builtin.os.tag) {
     // builtin.Os.linux => struct {
     // TODO
     // },
-    builtin.Os.windows => struct {
+    builtin.Os.Tag.windows => struct {
         mutex: [40]u8, // 40-byte mutex struct.
         condition_variable: u64,
 

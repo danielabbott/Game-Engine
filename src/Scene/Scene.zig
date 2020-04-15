@@ -10,22 +10,22 @@ const image = wgi.image;
 const Texture2D = render.Texture2D;
 
 pub fn getAmbient(file_data: []align(4) const u8, ambient: *[3]f32) void {
-    const scene_file_f32 = @bytesToSlice(f32, file_data);
+    const scene_file_f32 = std.mem.bytesAsSlice(f32, file_data);
     ambient.*[0] = scene_file_f32[1];
     ambient.*[1] = scene_file_f32[2];
     ambient.*[2] = scene_file_f32[3];
 }
 
 pub fn getClearColour(file_data: []align(4) const u8, c: *[3]f32) void {
-    const scene_file_f32 = @bytesToSlice(f32, file_data);
+    const scene_file_f32 = std.mem.bytesAsSlice(f32, file_data);
     c.*[0] = scene_file_f32[4];
     c.*[1] = scene_file_f32[5];
     c.*[2] = scene_file_f32[6];
 }
 
 pub fn getAssets(file_data: []align(4) const u8, assets_list: *std.ArrayList(Asset)) !void {
-    const scene_file_u32 = @bytesToSlice(u32, file_data);
-    const scene_file_f32 = @bytesToSlice(f32, file_data);
+    const scene_file_u32 = std.mem.bytesAsSlice(u32, file_data);
+    const scene_file_f32 = std.mem.bytesAsSlice(f32, file_data);
 
     if (scene_file_u32[0] != 0x1a98fd34) {
         return error.InvalidMagic;
@@ -36,7 +36,7 @@ pub fn getAssets(file_data: []align(4) const u8, assets_list: *std.ArrayList(Ass
         return error.TooManyAssets;
     }
 
-    var assets_list_original_size = assets_list.*.count();
+    var assets_list_original_size = assets_list.*.items.len;
     try assets_list.resize(assets_list_original_size + num_assets);
 
     errdefer {
@@ -52,7 +52,7 @@ pub fn getAssets(file_data: []align(4) const u8, assets_list: *std.ArrayList(Ass
 
         const asset_file_path = file_data[(offset * 4 + 1)..(offset * 4 + 1 + stringLen)];
 
-        assets_list.*.toSlice()[assets_list_original_size + i] = try Asset.init(asset_file_path);
+        assets_list.*.items[assets_list_original_size + i] = try Asset.init(asset_file_path);
 
         offset += (1 + stringLen + 3) / 4;
 
@@ -68,8 +68,8 @@ pub fn loadSceneFromFile(file_data: []align(4) const u8, assets_list: []Asset, a
         return error.InvalidFile;
     }
 
-    const scene_file_u32 = @bytesToSlice(u32, file_data);
-    const scene_file_f32 = @bytesToSlice(f32, file_data);
+    const scene_file_u32 = std.mem.bytesAsSlice(u32, file_data);
+    const scene_file_f32 = std.mem.bytesAsSlice(f32, file_data);
 
     if (scene_file_u32[0] != 0x1a98fd34) {
         return error.InvalidMagic;
@@ -80,7 +80,7 @@ pub fn loadSceneFromFile(file_data: []align(4) const u8, assets_list: []Asset, a
     var root_object = try allocator.create(render.Object);
     errdefer allocator.destroy(root_object);
     root_object.* = render.Object{
-        .name = "scnrootxxxxxxxxx",
+        .name = "scnrootxxxxxxxxx".*,
         .name_length = 7,
     };
 
@@ -112,9 +112,9 @@ pub fn loadSceneFromFile(file_data: []align(4) const u8, assets_list: []Asset, a
                 asset.ref_count.dec();
             }
 
-            meshes.toSlice()[i] = mesh;
+            meshes.items[i] = mesh;
         } else {
-            meshes.toSlice()[i] = null;
+            meshes.items[i] = null;
         }
     }
 
@@ -153,9 +153,9 @@ pub fn loadSceneFromFile(file_data: []align(4) const u8, assets_list: []Asset, a
                 try texture.texture.upload(asset.texture_width.?, asset.texture_height.?, asset.texture_type.?, asset.data.?);
             }
 
-            textures.toSlice()[i] = texture;
+            textures.items[i] = texture;
         } else {
-            textures.toSlice()[i] = null;
+            textures.items[i] = null;
         }
     }
 
@@ -196,12 +196,12 @@ pub fn loadSceneFromFile(file_data: []align(4) const u8, assets_list: []Asset, a
             const mesh_index = scene_file_u32[offset];
             offset += 1;
 
-            if (mesh_index < meshes.count() and meshes.toSlice()[mesh_index] != null) {
+            if (mesh_index < meshes.items.len and meshes.items[mesh_index] != null) {
                 // TODO scene file should have list of mesh renderers
                 // TODO return resource lists to caller
                 var mesh_renderer = try allocator.create(render.MeshRenderer);
                 errdefer allocator.destroy(mesh_renderer);
-                mesh_renderer.* = try render.MeshRenderer.init(meshes.toSlice()[mesh_index].?, allocator);
+                mesh_renderer.* = try render.MeshRenderer.init(meshes.items[mesh_index].?, allocator);
                 o.setMeshRenderer(mesh_renderer);
 
                 // Materials
@@ -212,11 +212,11 @@ pub fn loadSceneFromFile(file_data: []align(4) const u8, assets_list: []Asset, a
                     const norm = scene_file_u32[offset + 1];
                     offset += 2;
 
-                    if (tex < textures.count() and textures.toSlice()[tex] != null) {
-                        o.mesh_renderer.?.materials[j].setTexture(textures.toSlice()[tex].?);
+                    if (tex < textures.items.len and textures.items[tex] != null) {
+                        o.mesh_renderer.?.materials[j].setTexture(textures.items[tex].?);
                     }
-                    if (norm < textures.count() and textures.toSlice()[norm] != null) {
-                        o.mesh_renderer.?.materials[j].setNormalMap(textures.toSlice()[norm].?);
+                    if (norm < textures.items.len and textures.items[norm] != null) {
+                        o.mesh_renderer.?.materials[j].setNormalMap(textures.items[norm].?);
                     }
 
                     o.mesh_renderer.?.materials[j].specular_size = scene_file_f32[offset + 0];
@@ -271,8 +271,8 @@ pub fn loadSceneFromFile(file_data: []align(4) const u8, assets_list: []Asset, a
             };
         }
 
-        if (parent != 0xffffffff and parent < objects_list.count() - 1) {
-            try objects_list.toSlice()[parent].*.addChild(o);
+        if (parent != 0xffffffff and parent < objects_list.items.len - 1) {
+            try objects_list.items[parent].*.addChild(o);
         } else {
             try root_object.addChild(o);
         }

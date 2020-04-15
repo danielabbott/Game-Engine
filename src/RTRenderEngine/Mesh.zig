@@ -47,16 +47,16 @@ pub const Mesh = struct {
 
         var vbuf: Buffer = try Buffer.init();
         errdefer vbuf.free();
-        try vbuf.upload(Buffer.BufferType.VertexData, @sliceToBytes(model.vertex_data.?), modifiable);
+        try vbuf.upload(Buffer.BufferType.VertexData, std.mem.sliceAsBytes(model.vertex_data.?), modifiable);
 
         var ibuf: ?Buffer = null;
         if (model.*.index_count > 0) {
             ibuf = try Buffer.init();
             errdefer ibuf.?.free();
             if (model.indices_u16 != null) {
-                try ibuf.?.upload(Buffer.BufferType.IndexData, @sliceToBytes(model.indices_u16.?), modifiable);
+                try ibuf.?.upload(Buffer.BufferType.IndexData, std.mem.sliceAsBytes(model.indices_u16.?), modifiable);
             } else {
-                try ibuf.?.upload(Buffer.BufferType.IndexData, @sliceToBytes(model.indices_u32.?), modifiable);
+                try ibuf.?.upload(Buffer.BufferType.IndexData, std.mem.sliceAsBytes(model.indices_u32.?), modifiable);
             }
         }
 

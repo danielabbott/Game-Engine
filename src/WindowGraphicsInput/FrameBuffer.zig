@@ -110,7 +110,7 @@ pub const FrameBuffer = struct {
 
         const status = c.glCheckFramebufferStatus(c.GL_FRAMEBUFFER);
         if (status != c.GL_FRAMEBUFFER_COMPLETE) {
-            std.debug.warn("Framebuffer incomplete. Error: {}\n", status);
+            std.debug.warn("Framebuffer incomplete. Error: {}\n", .{status});
             assert(false);
             return error.OpenGLError;
         }
@@ -163,7 +163,7 @@ pub const FrameBuffer = struct {
             return try init3(p[0..], depth_texture);
         }
         else {
-             return try init3([0]*Texture2D{}, depth_texture);
+             return try init3(&[0]*Texture2D{}, depth_texture);
         }
     }
 
@@ -184,7 +184,6 @@ pub const FrameBuffer = struct {
 
         if (image_type != null) {
             texture = try allocator.create(Texture2D);
-                    //std.debug.warn("create {}\n", @ptrToInt(texture.?));
             texture.?.* = try Texture2D.init(false, img.MinFilter.Nearest);
             errdefer texture.?.free();
             try texture.?.upload(width, height, image_type.?, null);
@@ -327,7 +326,7 @@ pub const FrameBuffer = struct {
 };
 
 test "framebuffer" {
-    try window.createWindow(false, 200, 200, c"test", true, 0);
+    try window.createWindow(false, 200, 200, "test", true, 0);
 
     var a = std.heap.c_allocator;
 

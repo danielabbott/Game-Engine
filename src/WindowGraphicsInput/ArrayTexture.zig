@@ -55,23 +55,23 @@ pub const Texture2DArray = struct {
     }
 
     fn createframe_buffer_ids(self: *Texture2DArray) !void {
-        const start = self.frame_buffer_ids.count();
+        const start = self.frame_buffer_ids.items.len;
         const numToCreate = self.layers - start;
 
-        if(numToCreate < 1) {
+        if (numToCreate < 1) {
             return;
         }
 
         try self.frame_buffer_ids.resize(self.layers);
 
-        for (self.frame_buffer_ids.toSlice()[start..]) |*id| {
+        for (self.frame_buffer_ids.items[start..]) |*id| {
             id.* = 0;
         }
 
-        c.glGenFramebuffers(@intCast(c_int, numToCreate), @ptrCast([*c]c_uint, self.frame_buffer_ids.toSlice()[start..].ptr));
+        c.glGenFramebuffers(@intCast(c_int, numToCreate), @ptrCast([*c]c_uint, self.frame_buffer_ids.items[start..].ptr));
 
         var allIdsNon0: bool = true;
-        for (self.frame_buffer_ids.toSlice()[start..]) |id| {
+        for (self.frame_buffer_ids.items[start..]) |id| {
             if (id == 0) {
                 allIdsNon0 = false;
                 break;
@@ -79,7 +79,7 @@ pub const Texture2DArray = struct {
         }
 
         if (!allIdsNon0) {
-            c.glDeleteFramebuffers(@intCast(c_int, self.layers), @ptrCast([*c]c_uint, self.frame_buffer_ids.toSlice()[start..].ptr));
+            c.glDeleteFramebuffers(@intCast(c_int, self.layers), @ptrCast([*c]c_uint, self.frame_buffer_ids.items[start..].ptr));
             return error.OpenGLError;
         }
     }
@@ -92,7 +92,7 @@ pub const Texture2DArray = struct {
 
         try self.createframe_buffer_ids();
 
-        for (self.frame_buffer_ids.toSlice()) |id, i| {
+        for (self.frame_buffer_ids.items) |id, i| {
             c.glBindFramebuffer(c.GL_FRAMEBUFFER, id);
 
             c.glFramebufferTextureLayer(c.GL_FRAMEBUFFER, c.GL_COLOR_ATTACHMENT0, self.id, 0, @intCast(c_int, i));
@@ -100,7 +100,7 @@ pub const Texture2DArray = struct {
             // Configure framebuffer
 
             var drawBuffers: [1]c_uint = [1]c_uint{c.GL_COLOR_ATTACHMENT0};
-            c.glDrawBuffers(1, drawBuffers[0..].ptr);
+            c.glDrawBuffers(1, drawBuffers[0..]);
 
             // Validate framebuffer
 
@@ -119,14 +119,14 @@ pub const Texture2DArray = struct {
             return error.InvalidState;
         }
 
-        if(self.layers > 8) {
+        if (self.layers > 8) {
             return error.TooManyLayers;
         }
 
         // Create FBO
 
         c.glGenFramebuffers(1, @ptrCast([*c]c_uint, &self.frame_buffer_id));
-        if(self.frame_buffer_id == 0) {
+        if (self.frame_buffer_id == 0) {
             return error.OpenGLError;
         }
         errdefer {
@@ -138,17 +138,20 @@ pub const Texture2DArray = struct {
 
         c.glBindFramebuffer(c.GL_FRAMEBUFFER, self.frame_buffer_id);
 
-        const drawBuffers = [8]c_uint{ c.GL_COLOR_ATTACHMENT0,c.GL_COLOR_ATTACHMENT1,
-            c.GL_COLOR_ATTACHMENT2,c.GL_COLOR_ATTACHMENT3,c.GL_COLOR_ATTACHMENT4,c.GL_COLOR_ATTACHMENT5,
-            c.GL_COLOR_ATTACHMENT6,c.GL_COLOR_ATTACHMENT7 };
+        const drawBuffers = [8]c_uint{
+            c.GL_COLOR_ATTACHMENT0, c.GL_COLOR_ATTACHMENT1,
+            c.GL_COLOR_ATTACHMENT2, c.GL_COLOR_ATTACHMENT3,
+            c.GL_COLOR_ATTACHMENT4, c.GL_COLOR_ATTACHMENT5,
+            c.GL_COLOR_ATTACHMENT6, c.GL_COLOR_ATTACHMENT7,
+        };
         c.glDrawBuffers(@intCast(c_int, self.layers), drawBuffers[0..].ptr);
 
         var i: u32 = 0;
-        while(i < self.layers) : (i += 1) {
-            c.glFramebufferTextureLayer(c.GL_FRAMEBUFFER, c.GL_COLOR_ATTACHMENT0+i, self.id, 0, @intCast(c_int, i));
+        while (i < self.layers) : (i += 1) {
+            c.glFramebufferTextureLayer(c.GL_FRAMEBUFFER, c.GL_COLOR_ATTACHMENT0 + i, self.id, 0, @intCast(c_int, i));
         }
 
-        if(depth_texture != null) {
+        if (depth_texture != null) {
             c.glFramebufferTexture2D(c.GL_FRAMEBUFFER, c.GL_DEPTH_ATTACHMENT, c.GL_TEXTURE_2D, depth_texture.?.id, 0);
         }
 
@@ -160,7 +163,6 @@ pub const Texture2DArray = struct {
         }
 
         c.glBindFramebuffer(c.GL_FRAMEBUFFER, 0);
-        
     }
 
     pub fn bindFrameBuffer2(self: Texture2DArray) !void {
@@ -255,8 +257,8 @@ pub const Texture2DArray = struct {
         }
         self.ref_count.deinit();
 
-        if (self.frame_buffer_ids.count() > 0) {
-            c.glDeleteFramebuffers(@intCast(c_int, self.frame_buffer_ids.len), @ptrCast([*c]const c_uint, self.frame_buffer_ids.toSlice().ptr));
+        if (self.frame_buffer_ids.items.len > 0) {
+            c.glDeleteFramebuffers(@intCast(c_int, self.frame_buffer_ids.items.len), @ptrCast([*c]const c_uint, self.frame_buffer_ids.items.ptr));
         }
         self.frame_buffer_ids.deinit();
 
@@ -272,7 +274,7 @@ pub const Texture2DArray = struct {
 
         if (c.GL_ARB_clear_texture != 0) {
             c.glClearTexSubImage(self.id, 0, 0, 0, @intCast(c_int, index), @intCast(c_int, self.width), @intCast(c_int, self.height), 1, c.GL_RGBA, c.GL_FLOAT, colour[0..4].ptr);
-        } else if (self.frame_buffer_ids.count() > 0) {
+        } else if (self.frame_buffer_ids.items.len > 0) {
             try self.bindFrameBuffer(index);
             window.setClearColour(colour[0], colour[1], colour[2], colour[3]);
             window.clear(true, false);
@@ -289,11 +291,11 @@ pub const Texture2DArray = struct {
 };
 
 test "2d texture array" {
-    try window.createWindow(false, 200, 200, c"test", true, 0);
+    try window.createWindow(false, 200, 200, "test", true, 0);
 
     var texture: Texture2DArray = try Texture2DArray.init(false, MinFilter.Nearest);
 
-    const dataIn: []const u8 = [8]u8{ 127, 127, 127, 127, 33, 33, 33, 33 };
+    const dataIn: []const u8 = &[8]u8{ 127, 127, 127, 127, 33, 33, 33, 33 };
 
     try texture.upload(1, 1, 2, img.ImageType.RGBA, dataIn);
     expect(texture.width == 1);
@@ -306,7 +308,7 @@ test "2d texture array" {
     var data: [8]u8 = undefined;
     try texture.download(&data);
 
-    expect(mem.eql(u8, data, dataIn));
+    expect(mem.eql(u8, data[0..], dataIn));
 
     try texture.bind();
 

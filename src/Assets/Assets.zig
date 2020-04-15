@@ -93,7 +93,7 @@ pub const Asset = struct {
         var file_path = file_path_;
 
         var compressed = false;
-        if (file_path.len >= 11 and std.mem.compare(u8, file_path[file_path.len - 11 ..], ".compressed") == std.mem.Compare.Equal) {
+        if (file_path.len >= 11 and std.mem.eql(u8, file_path[file_path.len - 11 ..], ".compressed")) {
             compressed = true;
             file_path = file_path[0 .. file_path.len - 11];
         }
@@ -160,7 +160,7 @@ pub const Asset = struct {
         if (assets_directory == null) {
             self.data = try loadFile(self.file_path[0..self.file_path_len], allocator_);
         } else {
-            const n = std.fmt.bufPrint(path[0..], "{}{}", assets_directory, self.file_path[0..self.file_path_len]) catch unreachable;
+            const n = std.fmt.bufPrint(path[0..], "{}{}", .{assets_directory, self.file_path[0..self.file_path_len]}) catch unreachable;
             self.data = try loadFile(n, allocator_);
         }
         self.state = AssetState.Loaded;
@@ -209,7 +209,7 @@ pub const Asset = struct {
                 return error.FileTooSmall;
             }
 
-            const file_data_u32: []u32 = @bytesToSlice(u32, self.data.?);
+            const file_data_u32: []u32 = std.mem.bytesAsSlice(u32, self.data.?);
             if (file_data_u32[0] != 0x62677200 or file_data_u32[1] != 0x32613031) {
                 return error.InvalidMagic;
             }
@@ -297,7 +297,7 @@ fn fileLoader(allocator: *std.mem.Allocator) void {
             break;
         } else {
             asset_node.?.data.*.load(allocator) catch |e| {
-                std.debug.warn("Asset '{}' load error: {}\n", asset_node.?.data.file_path[0..asset_node.?.data.file_path_len], e);
+                std.debug.warn("Asset '{}' load error: {}\n", .{asset_node.?.data.file_path[0..asset_node.?.data.file_path_len], e});
                 _ = assets_to_load.decr();
                 continue;
             };
@@ -317,7 +317,7 @@ fn assetDecompressor(allocator: *std.mem.Allocator) void {
         } else {
             if (asset.?.data.*.state == Asset.AssetState.Loaded) {
                 asset.?.data.*.decompress() catch |e| {
-                    std.debug.warn("Asset '{}' decompress error: {}\n", asset.?.data.file_path[0..asset.?.data.file_path_len], e);
+                    std.debug.warn("Asset '{}' decompress error: {}\n", .{asset.?.data.file_path[0..asset.?.data.file_path_len], e});
                 };
             }
 
@@ -335,7 +335,7 @@ pub fn startAssetLoader_(assets_list: ?([]Asset), allocator: *std.mem.Allocator)
     if (assets_list != null) {
         for (assets_list.?) |*a| {
             addAssetToQueue(a, allocator) catch {
-                std.debug.warn("Asset {} added to load queue but is already loaded\n", a.file_path[0..a.file_path_len]);
+                std.debug.warn("Asset {} added to load queue but is already loaded\n", .{a.file_path[0..a.file_path_len]});
             };
         }
     }

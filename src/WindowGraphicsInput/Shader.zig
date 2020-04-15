@@ -58,7 +58,7 @@ pub const ShaderObject = struct {
         var status: u32 = 0;
         c.glGetShaderiv(id, c.GL_COMPILE_STATUS, @ptrCast([*c]c_int, &status));
         if (status == 0) {
-            warn("ShaderObject.init: Shader compilation failed\n");
+            warn("ShaderObject.init: Shader compilation failed\n", .{});
 
             var logSize: c_int = 0;
             c.glGetShaderiv(id, c.GL_INFO_LOG_LENGTH, &logSize);
@@ -69,11 +69,11 @@ pub const ShaderObject = struct {
                 c.glGetShaderInfoLog(id, logSize, 0, log.ptr);
                 log[log.len - 1] = 0;
 
-                warn("Log: ###\n{}\n###\nShader that failed:\n###\n", log);
+                warn("Log: ###\n{}\n###\nShader that failed:\n###\n", .{log});
                 for (source_strings) |a| {
-                    warn("{}", a[0 .. a.len - 1]);
+                    warn("{}", .{a[0 .. a.len - 1]});
                 }
-                warn("###\n");
+                warn("###\n", .{});
             }
 
             return error.OpenGLError;
@@ -146,7 +146,7 @@ pub const ShaderProgram = struct {
         c.glGetProgramiv(id, c.GL_LINK_STATUS, @ptrCast([*c]c_int, &status));
 
         if (status == 0) {
-            warn("ShaderProgram.init: Shader linking failed\n");
+            warn("ShaderProgram.init: Shader linking failed\n", .{});
 
             s.printLog(allocator);
 
@@ -166,7 +166,7 @@ pub const ShaderProgram = struct {
             c.glGetProgramInfoLog(self.id, logSize, 0, log.ptr);
             log[log.len - 1] = 0;
 
-            warn("Log: {}\n", log);
+            warn("Log: {}\n", .{log});
         }
     }
 
@@ -183,7 +183,7 @@ pub const ShaderProgram = struct {
             c.glGetProgramiv(self.id, c.GL_VALIDATE_STATUS, &status);
 
             if (status == 0) {
-                warn("ShaderProgram.init: Shader validation failed\n");
+                warn("ShaderProgram.init: Shader validation failed\n", .{});
                 self.printLog(allocator);
             }
         }
@@ -374,7 +374,6 @@ pub const ShaderProgram = struct {
     // data.len == count*4*3
     pub fn setUniformMat4x3(self: ShaderProgram, location: i32, count: i32, data: []f32) !void {
         if (location == -1) {
-            warn("ShaderProgram.setUniformMat4x3: location is -1\n");
             assert(false);
             return error.InvalidParameter;
         }
@@ -488,11 +487,11 @@ pub const ShaderProgram = struct {
         var binary_format: [1]u32 = undefined;
         try self.getBinary(&data, &binary_format[0], allocator);
 
-        var file = try std.fs.File.openWrite(file_path);
+        var file = try std.fs.cwd().openFile(file_path, std.fs.File.OpenFlags{.write=true});
         defer file.close();
 
-        try file.write(@sliceToBytes(binary_format[0..]));
-        try file.write(data[0..]);
+        _ = try file.write(std.mem.sliceAsBytes(binary_format[0..]));
+        _ = try file.write(data[0..]);
 
         allocator.free(data);
     }
@@ -527,17 +526,17 @@ pub const ShaderProgram = struct {
         }
 
         var data = try loadFile(file_path, allocator);
-        const binary_format = @bytesToSlice(u32, data[0..4])[0];
+        const binary_format = std.mem.bytesAsSlice(u32, data[0..4])[0];
 
         return loadFromBinary(binary_format, data[4..]);
     }
 };
 
 test "shader" {
-    try window.createWindow(false, 200, 200, c"test", true, 0);
+    try window.createWindow(false, 200, 200, "test", true, 0);
     defer window.closeWindow();
 
-    var a = std.heap.direct_allocator;
+    var a = std.heap.page_allocator;
 
     const vsSrc = "uniform mat4 matrix; in vec4 coords; in vec4 colour; out vec4 pass_colour; void main() { gl_Position = matrix * coords; pass_colour = colour; }\n#ifdef TEST\nsyntax error\n#endif\n\x00";
 
@@ -546,20 +545,20 @@ test "shader" {
     var vs: ShaderObject = try ShaderObject.init(([_]([]const u8){ "#version 140\n#define TEST_\n\x00", vsSrc })[0..], ShaderType.Vertex, a);
     var fs: ShaderObject = try ShaderObject.init(([_]([]const u8){fsSrc})[0..], ShaderType.Fragment, a);
 
-    var program: ShaderProgram = try ShaderProgram.init(&vs, &fs, [_]([]const u8){ "coords\x00", "colour\x00" }, a);
+    var program: ShaderProgram = try ShaderProgram.init(&vs, &fs, &[_]([]const u8){ "coords\x00", "colour\x00" }, a);
 
     vs.free();
     fs.free();
 
     var binary_data: []u8 = undefined;
     var binary_format: u32 = 0;
-    try program.getBinary(&binary_data, &binary_format, std.heap.direct_allocator);
-    defer std.heap.direct_allocator.free(binary_data);
+    try program.getBinary(&binary_data, &binary_format, std.heap.page_allocator);
+    defer std.heap.page_allocator.free(binary_data);
 
     program.free();
 
     program = try ShaderProgram.loadFromBinary(binary_format, binary_data);
 
-    var uniformId = try program.getUniformLocation(c"matrix");
+    var uniformId = try program.getUniformLocation("matrix");
     expect(uniformId != -1);
 }

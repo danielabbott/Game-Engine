@@ -340,7 +340,7 @@ pub const Texture2D = struct {
         const file_data = try files.loadFile(file_path, allocator);
         defer allocator.free(file_data);
 
-        const file_data_u32: []u32 = @bytesToSlice(u32, file_data);
+        const file_data_u32: []u32 = std.mem.bytesAsSlice(u32, file_data);
         if (file_data_u32[0] != 0x62677200 or file_data_u32[1] != 0x32613031) {
             return error.InvalidMagic;
         }
@@ -409,12 +409,12 @@ pub fn freeDecodedImage(data: []align(4) u8) void {
 }
 
 test "2d texture" {
-    try window.createWindow(false, 200, 200, c"test", true, 0);
+    try window.createWindow(false, 200, 200, "test", true, 0);
 
     var texture: Texture2D = try Texture2D.init(false, MinFilter.Nearest);
     expect(texture.id > 0);
 
-    const dataIn: []const u8 = [4]u8{ 127, 127, 127, 127 };
+    const dataIn: []const u8 = &[4]u8{ 127, 127, 127, 127 };
 
     try texture.upload(1, 1, ImageType.RGBA, dataIn);
     expect(texture.width == 1);
@@ -424,7 +424,7 @@ test "2d texture" {
     var data: [4]u8 = undefined;
     try texture.download(&data);
 
-    expect(mem.eql(u8, data, dataIn));
+    expect(mem.eql(u8, data[0..], dataIn));
 
     try texture.bind();
     try texture.bindToUnit(15);

@@ -135,13 +135,13 @@ pub const Buffer = struct {
 };
 
 test "Buffer" {
-    try window.createWindow(false, 200, 200, c"test", true, 0);
+    try window.createWindow(false, 200, 200, "test", true, 0);
     defer window.closeWindow();
 
     const inData = [4]u8{ 1, 2, 3, 4 };
     var buf: Buffer = try Buffer.init();
 
-    try buf.upload(Buffer.BufferType.VertexData, inData, false);
+    try buf.upload(Buffer.BufferType.VertexData, inData[0..], false);
 
     // GL_ARRAY_BUFFER, GL_READ_ONLY
     var ptr: [*]const u8 = @ptrCast([*]const u8, c.glMapBuffer(0x8892, 0x88B8).?);

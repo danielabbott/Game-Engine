@@ -35,7 +35,7 @@ const getLightData = @import("Light.zig").getLightData;
 var lights_count: u32 = 0;
 
 // Time value set at start of each frame
-var this_frame_time: u64 = 0;
+pub var this_frame_time: u64 = 0;
 
 const MAX_LIGHTS = 256; // Must match value in StandardShader.glsl
 
@@ -78,9 +78,9 @@ pub fn getDefaultNormalMap() *const Tex2D {
 
 var blur_shader_vs_src: ?[]u8 = null;
 var blur_shader_fs_src: ?[]u8 = null;
-var blur_shader_program: ?ShaderProgram = null;
+pub var blur_shader_program: ?ShaderProgram = null;
 
-var lights: ?ArrayList(*Object) = null;
+pub var lights: ?ArrayList(*Object) = null;
 
 // Per-frame, inter-frame data stored in VRAM
 
@@ -418,9 +418,9 @@ fn loadBlurShader(allocator: *Allocator) !void {
 
     var blur_vs: ShaderObject = try ShaderObject.init(([_]([]const u8){blur_shader_vs_src.?})[0..], ShaderType.Vertex, allocator);
     var blur_fs: ShaderObject = try ShaderObject.init(([_]([]const u8){blur_shader_fs_src.?})[0..], ShaderType.Fragment, allocator);
-    blur_shader_program = try ShaderProgram.init(&blur_vs, &blur_fs, [0][]const u8{}, allocator);
+    blur_shader_program = try ShaderProgram.init(&blur_vs, &blur_fs, &[0][]const u8{}, allocator);
 
-    try blur_shader_program.?.setUniform1i(try blur_shader_program.?.getUniformLocation(c"textureSrc"), 0);
+    try blur_shader_program.?.setUniform1i(try blur_shader_program.?.getUniformLocation("textureSrc"), 0);
 }
 
 // Allocator is for temporary allocations (printing shader error logs, temporary arrays, etc.) and permenant allocations (shader source files).
@@ -437,11 +437,11 @@ pub fn init(time: u64, allocator: *Allocator) !void {
 
     default_texture = try Tex2D.init(false, MinFilter.Nearest);
     errdefer default_texture.?.free();
-    try default_texture.?.upload(1, 1, ImageType.RGBA, [4]u8{ 0xff, 0xff, 0xff, 0xff });
+    try default_texture.?.upload(1, 1, ImageType.RGBA, &[4]u8{ 0xff, 0xff, 0xff, 0xff });
 
     default_normal_map = try Tex2D.init(false, MinFilter.Nearest);
     errdefer default_normal_map.?.free();
-    try default_normal_map.?.upload(1, 1, ImageType.RGBA, [4]u8{ 0x80, 0x80, 0xff, 0xff });
+    try default_normal_map.?.upload(1, 1, ImageType.RGBA, &[4]u8{ 0x80, 0x80, 0xff, 0xff });
 
     lights = ArrayList(*Object).init(allocator);
 
@@ -503,7 +503,7 @@ pub fn render(root_object: *Object, micro_time: u64, allocator: *Allocator) !voi
     camera_transform_inverse.data[3][2] += 1.0;
 
     // uniform_data.?.lights was initialised in objectsPrePass
-    std.mem.copy(f32, @alignCast(4, uniform_data.?.fog_colour[0..]), getSettings().fog_colour);
+    std.mem.copy(f32, @alignCast(4, uniform_data.?.fog_colour[0..]), &getSettings().fog_colour);
     try uniform_buffer.?.upload(Buffer.BufferType.Uniform, @intToPtr([*]const u8, @ptrToInt(uniform_data.?))[0..(16 * 2 + @sizeOf(UniformDataLight) * lights_count)], true);
     try uniform_buffer.?.bind(Buffer.BufferType.Uniform);
     try uniform_buffer.?.bindUniform(1, 0, uniform_buffer.?.data_size);

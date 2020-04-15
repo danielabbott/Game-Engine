@@ -70,7 +70,7 @@ fn keyCallback(key: i32, scancode: i32, action: i32, mods: i32) void {
 }
 
 pub fn main() !void {
-    errdefer @import("ErrorDialog.zig").showErrorMessageDialog(c"Fatal Error", c"An error has occurred.");
+    errdefer @import("ErrorDialog.zig").showErrorMessageDialog("Fatal Error", "An error has occurred.");
 
     // Specify root folder for assets
     assets.setAssetsDirectory("DemoAssets" ++ Files.path_seperator);
@@ -79,19 +79,19 @@ pub fn main() !void {
     defer assets_list.deinit();
     try assets_list.resize(1);
 
-    var model_asset = &assets_list.toSlice()[0];
+    var model_asset = &assets_list.items[0];
 
     model_asset.* = try Asset.init("objects.model");
 
     defer { // Free all assets (even if they are being used)
-        for (assets_list.toSlice()) |*a| {
+        for (assets_list.items) |*a| {
             a.*.free(true);
         }
     }
 
-    try assets.startAssetLoader1(assets_list.toSlice(), c_allocator);
+    try assets.startAssetLoader1(assets_list.items, c_allocator);
 
-    try window.createWindow(false, 1024, 768, c"Demo 3", true, 0);
+    try window.createWindow(false, 1024, 768, "Demo 3", true, 0);
     defer window.closeWindow();
     window.setResizeable(true);
 
@@ -156,7 +156,7 @@ pub fn main() !void {
 
     // Check all assets were loaded successfully
 
-    for (assets_list.toSlice()) |*a| {
+    for (assets_list.items) |*a| {
         if (a.state != Asset.AssetState.Ready) {
             return error.AssetLoadError;
         }
@@ -174,7 +174,7 @@ pub fn main() !void {
 
     // Free assets (data has been uploaded the GPU)
     // This frees the cpu-side copy of model data which is now stored on the GPU
-    for (assets_list.toSlice()) |*a| {
+    for (assets_list.items) |*a| {
         a.freeData();
     }
 
@@ -202,7 +202,7 @@ pub fn main() !void {
         last_frame_time = this_frame_time;
 
         if (this_frame_time - last_fps_print_time >= 990000) {
-            warn("{}\n", fps_count + 1);
+            warn("{}\n", .{fps_count + 1});
             fps_count = 0;
             last_fps_print_time = this_frame_time;
         } else {

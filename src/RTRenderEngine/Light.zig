@@ -4,6 +4,8 @@ const wgi = @import("../WindowGraphicsInput/WindowGraphicsInput.zig");
 const FrameBuffer = wgi.FrameBuffer;
 const MeshRenderer = @import("MeshRenderer.zig").MeshRenderer;
 const rtRenderEngine = @import("RTRenderEngine.zig");
+const blur_shader_program = &rtRenderEngine.blur_shader_program;
+const lights = &rtRenderEngine.lights;
 const Object = rtRenderEngine.Object;
 const getSettings = rtRenderEngine.getSettings;
 const renderObjects = rtRenderEngine.renderObjects;
@@ -29,7 +31,6 @@ const loadFileWithNullTerminator = files.loadFileWithNullTerminator;
 const VertexMeta = wgi.VertexMeta;
 const ArrayList = std.ArrayList;
 
-extern var blur_shader_program: ?ShaderProgram;
 
 pub const Light = struct {
     pub const LightType = enum(u32) {
@@ -151,7 +152,7 @@ pub const Light = struct {
         window.setCullMode(window.CullMode.None);
         wgi.disableDepthTesting();
         wgi.disableDepthWriting();
-        try blur_shader_program.?.bind();
+        try blur_shader_program.*.?.bind();
         try self.average_depth_framebuffer.?.bind();
         try self.depth_framebuffer.?.bindDepthTexture();
         try VertexMeta.drawWithoutData(VertexMeta.PrimitiveType.Triangles, 0, 3);
@@ -165,17 +166,16 @@ pub const UniformDataLight = packed struct {
     intensity: [4]f32,
 };
 
-extern var lights: ?ArrayList(*Object);
 
 pub fn getLightData(object: *Object, max_vertex_lights: u32, max_fragment_lights: u32, per_obj_light: *([3]f32), vertex_light_indices: *([8]i32), fragment_light_indices: *([4]i32), fragment_light_matrices: *([4]Matrix(f32, 4)), fragment_light_shadow_textures: *([4](?*const FrameBuffer))) void {
-    if (lights.?.len == 0) {
+    if (lights.*.?.items.len == 0) {
         return;
     }
 
     const obj_pos = object.true_transform.?.position3D();
 
     // Calculate effect of each light on the object
-    for (lights.?.toSlice()) |*light| {
+    for (lights.*.?.items) |*light| {
         if (light.*.light.?.light_type == Light.LightType.Point or light.*.light.?.light_type == Light.LightType.Spotlight) {
             // TODO If the bounding box of the object was known then we could determine if the light effects the object for Spotlights
             var v = light.*.light.?.light_pos;
@@ -203,7 +203,7 @@ pub fn getLightData(object: *Object, max_vertex_lights: u32, max_fragment_lights
     // Then all other lights are per-object
     // * Max number of lights can be decreased
 
-    if (lights.?.len > 1) {
+    if (lights.*.?.items.len > 1) {
         // Sort the lights by the effect on this object (most -> least effect)
         const sortFunction = struct {
             fn f(a: *Object, b: *Object) bool {
@@ -211,12 +211,12 @@ pub fn getLightData(object: *Object, max_vertex_lights: u32, max_fragment_lights
             }
         };
 
-        std.sort.sort(*Object, lights.?.toSlice(), sortFunction.f);
+        std.sort.sort(*Object, lights.*.?.items, sortFunction.f);
     }
 
     // Set light indices
 
-    const lights_slice = lights.?.toSlice();
+    const lights_slice = lights.*.?.items;
 
     var i: u32 = 0; // index into lights_slice
     var j: u32 = 0; // index into light arrays

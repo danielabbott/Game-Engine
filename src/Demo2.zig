@@ -54,15 +54,15 @@ fn keyCallback(key: i32, scancode: i32, action: i32, mods: i32) void {
 }
 
 fn assetFileLoaded(a: *Asset) void {
-    std.debug.warn("Asset file loaded: {}\n", a.*.file_path[0..a.*.file_path_len]);
+    std.debug.warn("Asset file loaded: {}\n", .{a.*.file_path[0..a.*.file_path_len]});
 }
 
 fn assetLoaded(a: *Asset) void {
-    std.debug.warn("Asset loaded: {}\n", a.*.file_path[0..a.*.file_path_len]);
+    std.debug.warn("Asset loaded: {}\n", .{a.*.file_path[0..a.*.file_path_len]});
 }
 
 pub fn main() !void {
-    errdefer @import("ErrorDialog.zig").showErrorMessageDialog(c"Fatal Error", c"An error has occurred.");
+    errdefer @import("ErrorDialog.zig").showErrorMessageDialog("Fatal Error","An error has occurred.");
     
     assets.setAssetsDirectory("DemoAssets" ++ Files.path_seperator);
 
@@ -70,12 +70,12 @@ pub fn main() !void {
     defer assets_list.deinit();
     try assets_list.resize(6);
 
-    var minotaur_model_asset = &assets_list.toSlice()[0];
-    var minotaur_texture_asset = &assets_list.toSlice()[1];
-    var minotaur_normal_map_asset = &assets_list.toSlice()[2];
-    var minotaur_texture2_asset = &assets_list.toSlice()[3];
-    var minotaur_normal_map2_asset = &assets_list.toSlice()[4];
-    var minotaur_animation_asset = &assets_list.toSlice()[5];
+    var minotaur_model_asset = &assets_list.items[0];
+    var minotaur_texture_asset = &assets_list.items[1];
+    var minotaur_normal_map_asset = &assets_list.items[2];
+    var minotaur_texture2_asset = &assets_list.items[3];
+    var minotaur_normal_map2_asset = &assets_list.items[4];
+    var minotaur_animation_asset = &assets_list.items[5];
 
     minotaur_model_asset.* = try Asset.init("minotaur.model.compressed");
     minotaur_texture_asset.* = try Asset.init("minotaur.png");
@@ -89,25 +89,25 @@ pub fn main() !void {
     minotaur_animation_asset.* = try Asset.init("minotaur_idle.anim.compressed");
 
     defer {
-        for (assets_list.toSlice()) |*a| {
+        for (assets_list.items) |*a| {
             if (a.state != Asset.AssetState.Freed) {
-                std.debug.warn("Asset {} not freed\n", a.file_path[0..a.file_path_len]);
+                std.debug.warn("Asset {} not freed\n", .{a.file_path[0..a.file_path_len]});
                 if (a.data != null) {
-                    std.debug.warn("\t^ Data has not been freed either\n");
+                    std.debug.warn("\t^ Data has not been freed either\n", .{});
                 }
             }
         }
     }
 
-    for (assets_list.toSlice()) |*a| {
+    for (assets_list.items) |*a| {
         a.*.whenFileLoaded = assetFileLoaded;
         a.*.whenAssetDecoded = assetLoaded;
     }
 
-    try assets.startAssetLoader1(assets_list.toSlice(), c_allocator);
+    try assets.startAssetLoader1(assets_list.items, c_allocator);
     defer assets.assetLoaderCleanup();
 
-    try window.createWindow(fullscreen, 1024, 768, c"Demo 2", true, 0);
+    try window.createWindow(fullscreen, 1024, 768, "Demo 2", true, 0);
     defer window.closeWindow();
     input.setKeyCallback(keyCallback);
     window.setResizeable(true);
@@ -161,7 +161,7 @@ pub fn main() !void {
         std.time.sleep(100000000);
     }
 
-    for (assets_list.toSlice()) |*a| {
+    for (assets_list.items) |*a| {
         if (a.state != Asset.AssetState.Ready) {
             return error.AssetLoadError;
         }
@@ -194,7 +194,7 @@ pub fn main() !void {
     try root_object.addChild(&minotaur_object);
 
     // Free assets (data has been uploaded the GPU)
-    for (assets_list.toSlice()) |*a| {
+    for (assets_list.items) |*a| {
         a.freeData();
     }
 
@@ -225,7 +225,7 @@ pub fn main() !void {
         last_frame_time = this_frame_time;
 
         if (this_frame_time - last_fps_print_time >= 990000) {
-            warn("{}\n", fps_count + 1);
+            warn("{}\n", .{fps_count + 1});
             fps_count = 0;
             last_fps_print_time = this_frame_time;
         } else {

@@ -175,12 +175,12 @@ pub const CubeMap = struct {
 };
 
 test "cubemap texture" {
-    try window.createWindow(false, 200, 200, c"test", true, 0);
+    try window.createWindow(false, 200, 200, "test", true, 0);
 
     var texture: CubeMap = try CubeMap.init(false, MinFilter.Nearest);
     expect(texture.id > 0);
 
-    const dataIn: []const u8 = [4]u8{ 127, 127, 127, 127 };
+    const dataIn: []const u8 = &[4]u8{ 127, 127, 127, 127 };
 
     try texture.upload(1, ImageType.RGBA, dataIn, null, null, null, null, null);
     expect(texture.size == 1);
@@ -194,7 +194,7 @@ test "cubemap texture" {
     var data6: [4]u8 = undefined;
     try texture.download(&data, &data2, &data3, &data4, &data5, &data6);
 
-    expect(mem.eql(u8, data, dataIn));
+    expect(mem.eql(u8, data[0..], dataIn));
 
     try texture.bind();
     try texture.bindToUnit(15);

@@ -13,7 +13,7 @@ var maxTextureSize: u32 = 1024;
 var maxTextureUnits: u32 = 16;
 var disableDepthBuffer = false;
 
-var window: ?*c.GLFWwindow = null;
+pub var window: ?*c.GLFWwindow = null;
 
 var gl_version: u32 = 33;
 
@@ -23,14 +23,14 @@ pub fn windowWasCreatedWithoutDepthBuffer() bool {
 
 export fn debug_callback(source: c_uint, type_: c_uint, id: c_uint, severity: c_uint, length: c_int, message: [*c]const u8, userParam: ?*const c_void) void {
     if (type_ != c.GL_DEBUG_TYPE_OTHER_ARB) { // gets rid of the 'Buffer detailed info' messages
-        warn("OpenGL error: {}\n", message[0..mem.len(u8, message)]);
+        warn("OpenGL error: {}\n", .{message[0..mem.len(message)]});
 
         assert(type_ != c.GL_DEBUG_TYPE_ERROR_ARB);
     }
 }
 
-extern fn glfw_error_callback(code: c_int, description: [*c]const u8) void {
-    warn("GLFW error: {} {}\n", code, description[0..mem.len(u8, description)]);
+fn glfw_error_callback(code: c_int, description: [*c]const u8) callconv(.C) void {
+    warn("GLFW error: {} {}\n", .{code, description[0..mem.len(description)]});
 }
 
 // If fullscreen is true then width and height are ignored.
@@ -101,13 +101,13 @@ pub fn createWindow(fullscreen: bool, width: u32, height: u32, title: [*]const u
     const gladLoadRet = c.gladLoadGLLoader(@ptrCast(c.GLADloadproc, c.glfwGetProcAddress));
 
     if (gladLoadRet == 0) {
-        warn("Possible error in gladLoadGLLoader\n");
+        warn("Possible error in gladLoadGLLoader\n", .{});
     }
 
     c.glfwSwapInterval(1);
 
     if (c.GLAD_GL_ARB_clip_control == 0) {
-        warn("ARB_clip_control OpenGL extension is not supported\n");
+        warn("ARB_clip_control OpenGL extension is not supported\n", .{});
         return error.ARBClipControlNotSupported;
     }
 
@@ -347,13 +347,13 @@ pub fn loadIcon(file_path: []const u8, allocator: *std.mem.Allocator) !void {
     }
 
     if (ico_width == 16 and ico_height == 16) {
-        setIcon(@bytesToSlice(u32, @sliceToBytes(ico_data)), null, null, null);
+        setIcon(std.mem.bytesAsSlice(u32, std.mem.sliceAsBytes(ico_data)), null, null, null);
     } else if (ico_width == 32 and ico_height == 32) {
-        setIcon(null, @bytesToSlice(u32, @sliceToBytes(ico_data)), null, null);
+        setIcon(null, std.mem.bytesAsSlice(u32, std.mem.sliceAsBytes(ico_data)), null, null);
     } else if (ico_width == 48 and ico_height == 48) {
-        setIcon(null, null, @bytesToSlice(u32, @sliceToBytes(ico_data)), null);
+        setIcon(null, null, std.mem.bytesAsSlice(u32, std.mem.sliceAsBytes(ico_data)), null);
     } else if (ico_width == 256 and ico_height == 256) {
-        setIcon(null, null, null, @bytesToSlice(u32, @sliceToBytes(ico_data)));
+        setIcon(null, null, null, std.mem.bytesAsSlice(u32, std.mem.sliceAsBytes(ico_data)));
     } else {
         return error.IconWrongSize;
     }

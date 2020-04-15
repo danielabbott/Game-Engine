@@ -28,14 +28,14 @@ fn createShaderProgram(allocator: *std.mem.Allocator) !void {
     var post_process_vs: ShaderObject = try ShaderObject.init(([_]([]const u8){post_process_shader_vs_src.?})[0..], ShaderType.Vertex, allocator);
     var post_process_fs: ShaderObject = try ShaderObject.init(([_]([]const u8){post_process_shader_fs_src.?})[0..], ShaderType.Fragment, allocator);
     errdefer post_process_shader_program = null;
-    post_process_shader_program = try ShaderProgram.init(&post_process_vs, &post_process_fs, [0][]const u8{}, allocator);
+    post_process_shader_program = try ShaderProgram.init(&post_process_vs, &post_process_fs, &[0][]const u8{}, allocator);
     errdefer post_process_shader_program.?.free();
 
-    try post_process_shader_program.?.setUniform1i(try post_process_shader_program.?.getUniformLocation(c"framebuffer"), 0);
-    post_process_shader_program_window_size_uniform_location = try post_process_shader_program.?.getUniformLocation(c"window_dimensions");
+    try post_process_shader_program.?.setUniform1i(try post_process_shader_program.?.getUniformLocation("framebuffer"), 0);
+    post_process_shader_program_window_size_uniform_location = try post_process_shader_program.?.getUniformLocation("window_dimensions");
 
-    post_process_shader_program_contrast_uniform_location = try post_process_shader_program.?.getUniformLocation(c"contrast");
-    post_process_shader_program_brightness_uniform_location = try post_process_shader_program.?.getUniformLocation(c"brightness");
+    post_process_shader_program_contrast_uniform_location = try post_process_shader_program.?.getUniformLocation("contrast");
+    post_process_shader_program_brightness_uniform_location = try post_process_shader_program.?.getUniformLocation("brightness");
 
     post_process_vs.free();
     post_process_fs.free();
@@ -59,7 +59,7 @@ pub fn startFrame(window_width: u32, window_height: u32, allocator: *std.mem.All
     }
 
     createResources(window_width, window_height, allocator) catch |e| {
-        std.debug.warn("Error creating post-process resources: {}\n", e);
+        std.debug.warn("Error creating post-process resources: {}\n", .{e});
         return e;
     };
 

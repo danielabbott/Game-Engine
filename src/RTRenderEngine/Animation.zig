@@ -5,9 +5,9 @@ const Asset = @import("../Assets/Assets.zig").Asset;
 const ShaderInstance = @import("Shader.zig").ShaderInstance;
 const Mesh = @import("Mesh.zig").Mesh;
 const ModelData = @import("../ModelFiles/ModelFiles.zig").ModelData;
+const this_frame_time = &@import("RTRenderEngine.zig").this_frame_time;
 
 var identity_matrix_buffer: ?[]f32 = null;
-extern var this_frame_time: u64;
 
 pub const Animation = struct {
     ref_count: ReferenceCounter = ReferenceCounter{},
@@ -59,7 +59,7 @@ pub const Animation = struct {
             .model = model,
             .matrices = matrices,
             .allocator = allocator,
-            .animation_start_time = this_frame_time,
+            .animation_start_time = this_frame_time.*,
         };
     }
 
@@ -101,20 +101,20 @@ pub const Animation = struct {
     }
 
     pub fn play(self: *Animation) void {
-        self.animation_start_time = this_frame_time;
+        self.animation_start_time = this_frame_time.*;
     }
 
     pub fn pause(self: *Animation) void {
         if (self.paused == false) {
             self.paused = true;
-            self.paused_at_time = this_frame_time;
+            self.paused_at_time = this_frame_time.*;
         }
     }
 
     pub fn unpause(self: *Animation) void {
         if (self.paused == true) {
             self.paused = false;
-            self.animation_start_time += this_frame_time - self.paused_at_time;
+            self.animation_start_time += this_frame_time.* - self.paused_at_time;
         }
     }
 
@@ -124,7 +124,7 @@ pub const Animation = struct {
             return error.ModelNotCompatible;
         }
 
-        var now: u64 = this_frame_time;
+        var now: u64 = this_frame_time.*;
         if (self.paused) {
             now = self.paused_at_time;
         }
@@ -147,7 +147,7 @@ pub const Animation = struct {
 
             var bone_i: u32 = 0;
             while (bone_i < 128) : (bone_i += 1) {
-                std.mem.copy(f32, identity_matrix_buffer.?[bone_i * 4 * 4 .. bone_i * 4 * 4 + 4 * 4], [16]f32{
+                std.mem.copy(f32, identity_matrix_buffer.?[bone_i * 4 * 4 .. bone_i * 4 * 4 + 4 * 4], &[16]f32{
                     1.0, 0.0, 0.0, 0.0,
                     0.0, 1.0, 0.0, 0.0,
                     0.0, 0.0, 1.0, 0.0,

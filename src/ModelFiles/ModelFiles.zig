@@ -58,7 +58,7 @@ pub const ModelData = struct {
     // This struct references (read-only) the data until delete is called (unless this function returns with an error)
     pub fn init(data: []align(4) const u8, allocator: *mem.Allocator) !ModelData {
         if (data.len < 7 * 4) {
-            warn("ModelData.init: Data length is only {}\n", data.len);
+            warn("ModelData.init: Data length is only {}\n", .{data.len});
             return error.FileTooSmall;
         }
 
@@ -68,11 +68,11 @@ pub const ModelData = struct {
 
         var model_data: ModelData = ModelData{};
 
-        const data_u32 = @bytesToSlice(u32, data);
-        const data_f32 = @bytesToSlice(f32, data);
+        const data_u32 = std.mem.bytesAsSlice(u32, data);
+        const data_f32 = std.mem.bytesAsSlice(f32, data);
 
         if (data_u32[0] != 0xaaeecdbb) {
-            warn("ModelData.init: Magic field incorrect. Value was {}\n", data_u32[0]);
+            warn("ModelData.init: Magic field incorrect. Value was {}\n", .{data_u32[0]});
             return error.NotAModelFile;
         }
         model_data.attributes_bitmap = @intCast(u8, data_u32[2] & 0x7f);
@@ -114,7 +114,7 @@ pub const ModelData = struct {
         } else {
             var attrib_i: u3 = 0;
             while (attrib_i < 7) : (attrib_i += 1) {
-                const attrib_bit_set = (model_data.attributes_bitmap & (u8(1) << attrib_i)) != 0;
+                const attrib_bit_set = (model_data.attributes_bitmap & (@as(u8,1) << attrib_i)) != 0;
                 if (attrib_bit_set) {
                     if (attrib_i == @enumToInt(VertexAttributeType.Position)) {
                         if (offset + model_data.vertex_count * 3 > data_u32.len) {
@@ -183,7 +183,7 @@ pub const ModelData = struct {
                     return error.FileTooSmall;
                 }
 
-                model_data.indices_u16 = @bytesToSlice(u16, data)[(offset * 2)..(offset * 2 + model_data.index_count)];
+                model_data.indices_u16 = std.mem.bytesAsSlice(u16, data)[(offset * 2)..(offset * 2 + model_data.index_count)];
 
                 offset += (model_data.index_count + 1) / 2;
             }
@@ -199,7 +199,7 @@ pub const ModelData = struct {
         offset += 1;
 
         if (model_data.material_count > 32) {
-            warn("ModelData.init: Material count field invalid. Value was {}\n", model_data.material_count);
+            warn("ModelData.init: Material count field invalid. Value was {}\n", .{model_data.material_count});
             return error.TooManyMaterials;
         }
 
@@ -288,7 +288,7 @@ pub const ModelData = struct {
             }
             model_data.bones = try allocator.alloc(u8, (offset - offsetAtBonesListStart) * 4);
             errdefer allocator.free(model_data.bones.?);
-            mem.copy(u8, model_data.bones.?, @sliceToBytes(data_u32[offsetAtBonesListStart..offset]));
+            mem.copy(u8, model_data.bones.?, std.mem.sliceAsBytes(data_u32[offsetAtBonesListStart..offset]));
         }
 
         return model_data;
@@ -313,7 +313,7 @@ pub const ModelData = struct {
                 first_index.* = self.materials.?[offset];
                 index_vertex_count.* = self.materials.?[offset + 1];
                 offset += 2;
-                utf8_name.* = @sliceToBytes(self.materials.?)[(offset * 4 + 1)..(offset * 4 + 1 + stringLen)];
+                utf8_name.* = std.mem.sliceAsBytes(self.materials.?)[(offset * 4 + 1)..(offset * 4 + 1 + stringLen)];
                 return;
             }
 
@@ -411,7 +411,7 @@ test "Model import test (non-interleaved)" {
     var buf: [1024]u8 = undefined;
     const a = &std.heap.FixedBufferAllocator.init(&buf).allocator;
 
-    var m: ModelData = try ModelData.init(@sliceToBytes(testData[0..]), a);
+    var m: ModelData = try ModelData.init(std.mem.sliceAsBytes(testData[0..]), a);
     defer m.free(a);
 
     std.testing.expect(m.vertex_count == 1);

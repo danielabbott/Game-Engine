@@ -70,15 +70,15 @@ fn keyCallback(key: i32, scancode: i32, action: i32, mods: i32) void {
 }
 
 fn assetFileLoaded(a: *Asset) void {
-    std.debug.warn("Asset file loaded: {}\n", a.*.file_path[0..a.*.file_path_len]);
+    std.debug.warn("Asset file loaded: {}\n",.{a.*.file_path[0..a.*.file_path_len]});
 }
 
 fn assetLoaded(a: *Asset) void {
-    std.debug.warn("Asset loaded: {}\n", a.*.file_path[0..a.*.file_path_len]);
+    std.debug.warn("Asset loaded: {}\n", .{a.*.file_path[0..a.*.file_path_len]});
 }
 
 pub fn main() !void {
-    errdefer @import("ErrorDialog.zig").showErrorMessageDialog(c"Fatal Error", c"An error has occurred.");
+    errdefer @import("ErrorDialog.zig").showErrorMessageDialog("Fatal Error", "An error has occurred.");
 
     // Specify root folder for assets
     assets.setAssetsDirectory("DemoAssets" ++ Files.path_seperator);
@@ -94,27 +94,27 @@ pub fn main() !void {
     // Gets the assets list from the scene file and creates asset objects
     try scenes.getAssets(scene_file, &assets_list);
 
-    const num_scene_assets = assets_list.count();
+    const num_scene_assets = assets_list.items.len;
 
     defer { // Free all assets (even if they are being used)
-        for (assets_list.toSlice()) |*a| {
+        for (assets_list.items) |*a| {
             a.*.free(true);
         }
     }
 
-    for (assets_list.toSlice()) |*a| {
+    for (assets_list.items) |*a| {
         a.*.whenFileLoaded = assetFileLoaded;
         a.*.whenAssetDecoded = assetLoaded;
     }
 
-    try assets.startAssetLoader1(assets_list.toSlice(), c_allocator);
+    try assets.startAssetLoader1(assets_list.items, c_allocator);
 
-    try window.createWindow(false, 1024, 768, c"Demo 1", true, 0);
+    try window.createWindow(false, 1024, 768, "Demo 1", true, 0);
     defer window.closeWindow();
     window.setResizeable(true);
 
     window.loadIcon("DemoAssets" ++ Files.path_seperator ++ "icon.jpg", c_allocator) catch |e| {
-        warn("Error loading icon: {}\n", e);
+        warn("Error loading icon: {}\n", .{e});
     };
 
     input.setKeyCallback(keyCallback);
@@ -126,7 +126,7 @@ pub fn main() !void {
     const settings = render.getSettings();
     scenes.getAmbient(scene_file, &settings.*.ambient);
     scenes.getClearColour(scene_file, &settings.*.clear_colour);
-    std.mem.copy(f32, settings.*.fog_colour[0..3], settings.*.clear_colour);
+    std.mem.copy(f32, settings.*.fog_colour[0..3], &settings.*.clear_colour);
     settings.*.fog_colour[3] = 1;
 
     settings.enable_point_lights = false;
@@ -170,7 +170,7 @@ pub fn main() !void {
 
     // Check all assets were loaded successfully
 
-    for (assets_list.toSlice()) |*a| {
+    for (assets_list.items) |*a| {
         if (a.state != Asset.AssetState.Ready) {
             return error.AssetLoadError;
         }
@@ -178,12 +178,12 @@ pub fn main() !void {
 
     // Load the farm
 
-    const scene = try scenes.loadSceneFromFile(scene_file, assets_list.toSlice()[0..num_scene_assets], c_allocator);
+    const scene = try scenes.loadSceneFromFile(scene_file, assets_list.items[0..num_scene_assets], c_allocator);
     try root_object.addChild(scene);
 
     // Free assets (data has been uploaded the GPU)
     // This frees the cpu-side copy of model data and textures which is now stored on the GPU
-    for (assets_list.toSlice()) |*a| {
+    for (assets_list.items) |*a| {
         a.freeData();
     }
 
@@ -237,7 +237,7 @@ pub fn main() !void {
         last_frame_time = this_frame_time;
 
         if (this_frame_time - last_fps_print_time >= 990000) {
-            warn("{}\n", fps_count + 1);
+            warn("{}\n", .{fps_count + 1});
             fps_count = 0;
             last_fps_print_time = this_frame_time;
         } else {

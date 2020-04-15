@@ -429,9 +429,9 @@ pub fn Matrix(comptime T: type, comptime S: u32) type {
             while (i < S) : (i += 1) {
                 var j: u32 = 0;
                 while (j < S) : (j += 1) {
-                    warn("{} ", self.data[j][i]);
+                    warn("{} ", .{self.data[j][i]});
                 }
-                warn("\n");
+                warn("\n", .{});
             }
         }
 
@@ -511,6 +511,19 @@ pub fn Matrix(comptime T: type, comptime S: u32) type {
             } else {
                 @compileError("Matrix.position2D is only for 2x2 and 3x3 matrices.");
             }
+        }
+
+        pub fn equalTo(self: Matrix(T, S), b: Matrix(T, S)) bool {
+            var i: u32 = 0;
+            while (i < S) : (i += 1) {
+                var j: u32 = 0;
+                while (j < S) : (j += 1) {
+                    if(self.data[i][j] != b.data[i][j]) {
+                        return false;
+                    }
+                }
+            }
+            return true;
         }
     };
 }
@@ -673,7 +686,7 @@ test "Inverse" {
     std.testing.expect(std.math.approxEq(f32, m_.data[1][1], -1.0 / 2.0, 0.00001));
 
     const m__ = try m_.inverse();
-    std.testing.expect(std.mem.compare(f32, @bitCast([4]f32, m__.data), @bitCast([4]f32, m.data)) == std.mem.Compare.Equal);
+    std.testing.expect(m__.equalTo(m));
 
     var m2: Matrix(f32, 3) = Matrix(f32, 3).init([3][3]f32{
         [3]f32{ 2, 8, 5 },

@@ -14,7 +14,7 @@ pub const AnimationData = struct {
     // This struct references (read-only) the data until delete is called (unless this function returns with an error)
     pub fn init(data: []align(4) const u8) !AnimationData {
         if (data.len < 16) {
-            warn("AnimationData.init: Data length is only {}\n", data.len);
+            warn("AnimationData.init: Data length is only {}\n", .{data.len});
             return error.FileTooSmall;
         }
 
@@ -22,11 +22,11 @@ pub const AnimationData = struct {
             return error.InvalidFileSize;
         }
 
-        const data_u32 = @bytesToSlice(u32, data);
-        const data_f32 = @bytesToSlice(f32, data);
+        const data_u32 = std.mem.bytesAsSlice(u32, data);
+        const data_f32 = std.mem.bytesAsSlice(f32, data);
 
         if (data_u32[0] != 0xee334507) {
-            warn("AnimationData.init: Magic field incorrect. Value was {}\n", data_u32[0]);
+            warn("AnimationData.init: Magic field incorrect. Value was {}\n", .{data_u32[0]});
             return error.NotAnAnimationFile;
         }
 
@@ -64,7 +64,7 @@ pub const AnimationData = struct {
             i += 1;
         }
 
-        const bone_names = @sliceToBytes(data_u32[bone_names_list_start..offset]);
+        const bone_names = std.mem.sliceAsBytes(data_u32[bone_names_list_start..offset]);
 
         const matrix_array_size = bone_count * frame_count * 4 * 4;
 

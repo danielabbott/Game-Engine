@@ -12,17 +12,17 @@ pub const c = @cImport({
 fn save(path: []const u8, w: u32, h: u32, data: []const u8) !void {
     assert(data.len == w * h * 4);
 
-    var file = try File.openWrite(path);
+    var file = try std.fs.cwd().openFile(path, std.fs.File.OpenFlags{.write=true});
     defer file.close();
 
     // Magic bytes
     const header = [8]u8{ 0x00, 0x72, 0x67, 0x62, 0x31, 0x30, 0x61, 0x32 };
-    try file.write(header);
+    _ = try file.write(header[0..]);
 
-    try file.write(@ptrCast([*c]const u8, &w)[0..4]);
-    try file.write(@ptrCast([*c]const u8, &h)[0..4]);
+    _ = try file.write(@ptrCast([*c]const u8, &w)[0..4]);
+    _ = try file.write(@ptrCast([*c]const u8, &h)[0..4]);
 
-    try file.write(data);
+    _ = try file.write(data);
 }
 
 pub fn convertFile(path: []const u8, output_file_path: []const u8, allocator: *std.mem.Allocator) !void {
@@ -42,7 +42,7 @@ pub fn convertFile(path: []const u8, output_file_path: []const u8, allocator: *s
     const w_u32 = @intCast(u32, w);
     const h_u32 = @intCast(u32, h);
 
-    var decoded_png_u16 = @bytesToSlice(u16, @sliceToBytes(decoded_png[0..(w_u32 * h_u32 * 4)]));
+    var decoded_png_u16 = std.mem.bytesAsSlice(u16, std.mem.sliceAsBytes(decoded_png[0..(w_u32 * h_u32 * 4)]));
 
     var converted_data = try allocator.alloc(u32, w_u32 * h_u32);
     defer allocator.free(converted_data);
@@ -68,5 +68,5 @@ pub fn convertFile(path: []const u8, output_file_path: []const u8, allocator: *s
 
     ////
 
-    try save(output_file_path, w_u32, h_u32, @sliceToBytes(converted_data));
+    try save(output_file_path, w_u32, h_u32, std.mem.sliceAsBytes(converted_data));
 }

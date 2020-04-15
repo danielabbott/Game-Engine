@@ -33,7 +33,7 @@ fn addSettings(x: *LibExeObjStep) void {
     x.addObjectFile("deps/glad/glad.o");
     x.addIncludeDir("deps/zstd/lib");
 
-    if (builtin.os == builtin.Os.windows) {
+    if (builtin.os.tag == builtin.Os.Tag.windows) {
         x.addLibPath("deps/glfw/src/Release");
         x.addLibPath("deps/stb_image/x64/Release");
         x.addLibPath("deps\\zstd\\build\\VS2010\\bin\\x64_Release");
@@ -52,7 +52,7 @@ fn addSettings(x: *LibExeObjStep) void {
     }
 
     x.linkSystemLibrary("glfw3");
-    if (builtin.os == builtin.Os.windows) {
+    if (builtin.os.tag == builtin.Os.Tag.windows) {
         x.linkSystemLibrary("user32");
         x.linkSystemLibrary("gdi32");
         x.linkSystemLibrary("shell32");

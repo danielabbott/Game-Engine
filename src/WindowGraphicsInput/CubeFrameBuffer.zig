@@ -149,7 +149,7 @@ pub const CubeFrameBuffer = struct {
 };
 
 test "framebuffer" {
-    try window.createWindow(false, 200, 200, c"test", true, 0);
+    try window.createWindow(false, 200, 200, "test", true, 0);
 
     var fb: CubeFrameBuffer = try CubeFrameBuffer.init(256, FrameBuffer.DepthType.I16);
     try fb.bind(CubeFrameBuffer.Direction.PositiveY);

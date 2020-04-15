@@ -14,6 +14,8 @@ const getSettings = @import("RTRenderEngine.zig").getSettings;
 const builtin = @import("builtin");
 const VertexAttributeType = @import("../ModelFiles/ModelFiles.zig").ModelData.VertexAttributeType;
 
+extern fn remove([*c]const u8) c_int;
+
 var standard_shader_vs_src: ?[]u8 = null;
 var standard_shader_fs_src: ?[]u8 = null;
 var standard_shader_common_src: ?[]u8 = null;
@@ -81,13 +83,13 @@ pub const ShaderInstance = struct {
 
         // Find loaded shader
         if (config.shadow) {
-            for (shader_instances.?.toSliceConst()) |*a| {
+            for (shader_instances.?.items) |*a| {
                 if (a.*.config.shadow and a.*.config.inputs_bitmap == config.inputs_bitmap) {
                     return a;
                 }
             }
         } else {
-            for (shader_instances.?.toSliceConst()) |*a| {
+            for (shader_instances.?.items) |*a| {
                 if (!a.*.config.shadow and a.*.config.inputs_bitmap == config.inputs_bitmap and a.*.config.max_vertex_lights == config.max_vertex_lights and a.*.config.max_fragment_lights == config.max_fragment_lights and a.*.config.non_uniform_scale == config.non_uniform_scale and a.*.config.recieve_shadows == config.recieve_shadows and a.*.config.enable_point_lights == config.enable_point_lights and a.*.config.enable_spot_lights == config.enable_spot_lights and a.*.config.enable_directional_lights == config.enable_directional_lights and a.*.config.enable_specular_light == config.enable_specular_light) {
                     return a;
                 }
@@ -267,17 +269,17 @@ pub const ShaderInstance = struct {
         try program.setUniforms();
 
         if (cache) {
-            std.fs.makeDir("ShaderCache") catch |e| {
+            std.fs.makeDirAbsolute("ShaderCache") catch |e| {
                 if (e != std.os.MakeDirError.PathAlreadyExists) {
                     return e;
                 }
             };
 
             var file_path_: [128]u8 = undefined;
-            const file_path = getFileName(file_path_[0..], program.shader_name, config) catch return program;
+            const file_path = getFileName(file_path_[0..], program.shader_name, config, true) catch return program;
 
             program.shader_program.saveBinary(file_path, allocator) catch {
-                std.fs.deleteFile(file_path) catch {};
+                _ = remove(@ptrCast ([*c]const u8, file_path));
             };
         }
 
@@ -285,50 +287,50 @@ pub const ShaderInstance = struct {
     }
 
     fn setUniforms(self: *ShaderInstance) !void {
-        const index = self.shader_program.getUniformBlockIndex(c"UniformData") catch null;
+        const index = self.shader_program.getUniformBlockIndex("UniformData") catch null;
         if (index != null) {
             try self.shader_program.setUniformBlockBinding(index.?, 1);
         }
 
-        self.mvp_matrix_location = self.shader_program.getUniformLocation(c"mvp_matrix") catch null;
-        self.model_matrix_location = self.shader_program.getUniformLocation(c"model_matrix") catch null;
-        self.model_view_matrix_location = self.shader_program.getUniformLocation(c"model_view_matrix") catch null;
-        self.normal_matrix_location = self.shader_program.getUniformLocation(c"normalMatrix") catch null;
-        self.colour_location = self.shader_program.getUniformLocation(c"object_colour") catch null;
-        self.per_obj_light_location = self.shader_program.getUniformLocation(c"per_obj_light") catch null;
-        self.vertex_light_indices_location = self.shader_program.getUniformLocation(c"vertex_lights") catch null;
-        self.fragment_light_indices_location = self.shader_program.getUniformLocation(c"fragment_lights") catch null;
-        self.near_planes_location = self.shader_program.getUniformLocation(c"nearPlanes") catch null;
-        self.far_planes_location = self.shader_program.getUniformLocation(c"farPlanes") catch null;
-        self.specular_intensity_location = self.shader_program.getUniformLocation(c"specularIntensity") catch null;
-        self.specular_size_location = self.shader_program.getUniformLocation(c"specularSize") catch null;
-        self.specular_colouration_location = self.shader_program.getUniformLocation(c"specularColouration") catch null;
-        self.flat_shading_location = self.shader_program.getUniformLocation(c"flatShading") catch null;
+        self.mvp_matrix_location = self.shader_program.getUniformLocation("mvp_matrix") catch null;
+        self.model_matrix_location = self.shader_program.getUniformLocation("model_matrix") catch null;
+        self.model_view_matrix_location = self.shader_program.getUniformLocation("model_view_matrix") catch null;
+        self.normal_matrix_location = self.shader_program.getUniformLocation("normalMatrix") catch null;
+        self.colour_location = self.shader_program.getUniformLocation("object_colour") catch null;
+        self.per_obj_light_location = self.shader_program.getUniformLocation("per_obj_light") catch null;
+        self.vertex_light_indices_location = self.shader_program.getUniformLocation("vertex_lights") catch null;
+        self.fragment_light_indices_location = self.shader_program.getUniformLocation("fragment_lights") catch null;
+        self.near_planes_location = self.shader_program.getUniformLocation("nearPlanes") catch null;
+        self.far_planes_location = self.shader_program.getUniformLocation("farPlanes") catch null;
+        self.specular_intensity_location = self.shader_program.getUniformLocation("specularIntensity") catch null;
+        self.specular_size_location = self.shader_program.getUniformLocation("specularSize") catch null;
+        self.specular_colouration_location = self.shader_program.getUniformLocation("specularColouration") catch null;
+        self.flat_shading_location = self.shader_program.getUniformLocation("flatShading") catch null;
 
-        const texLoc = self.shader_program.getUniformLocation(c"main_texture") catch null;
+        const texLoc = self.shader_program.getUniformLocation("main_texture") catch null;
         if (texLoc != null) {
             try self.shader_program.setUniform1i(texLoc.?, 0);
         }
 
-        const nmapLoc = self.shader_program.getUniformLocation(c"texture_normal_map") catch null;
+        const nmapLoc = self.shader_program.getUniformLocation("texture_normal_map") catch null;
         if (nmapLoc != null) {
             try self.shader_program.setUniform1i(nmapLoc.?, 1);
         }
 
-        self.light_matrices_location = self.shader_program.getUniformLocation(c"lightMatrices") catch null;
+        self.light_matrices_location = self.shader_program.getUniformLocation("lightMatrices") catch null;
 
         var shadow_texture_locations: [4]?i32 = [1]?i32{null} ** 4;
         var shadow_cube_texture_locations: [4]?i32 = [1]?i32{null} ** 4;
 
-        shadow_texture_locations[0] = self.shader_program.getUniformLocation(c"shadowTexture0") catch null;
-        shadow_texture_locations[1] = self.shader_program.getUniformLocation(c"shadowTexture1") catch null;
-        shadow_texture_locations[2] = self.shader_program.getUniformLocation(c"shadowTexture2") catch null;
-        shadow_texture_locations[3] = self.shader_program.getUniformLocation(c"shadowTexture3") catch null;
+        shadow_texture_locations[0] = self.shader_program.getUniformLocation("shadowTexture0") catch null;
+        shadow_texture_locations[1] = self.shader_program.getUniformLocation("shadowTexture1") catch null;
+        shadow_texture_locations[2] = self.shader_program.getUniformLocation("shadowTexture2") catch null;
+        shadow_texture_locations[3] = self.shader_program.getUniformLocation("shadowTexture3") catch null;
 
-        shadow_cube_texture_locations[0] = self.shader_program.getUniformLocation(c"shadowCubeTextures0") catch null;
-        shadow_cube_texture_locations[1] = self.shader_program.getUniformLocation(c"shadowCubeTextures1") catch null;
-        shadow_cube_texture_locations[2] = self.shader_program.getUniformLocation(c"shadowCubeTextures2") catch null;
-        shadow_cube_texture_locations[3] = self.shader_program.getUniformLocation(c"shadowCubeTextures3") catch null;
+        shadow_cube_texture_locations[0] = self.shader_program.getUniformLocation("shadowCubeTextures0") catch null;
+        shadow_cube_texture_locations[1] = self.shader_program.getUniformLocation("shadowCubeTextures1") catch null;
+        shadow_cube_texture_locations[2] = self.shader_program.getUniformLocation("shadowCubeTextures2") catch null;
+        shadow_cube_texture_locations[3] = self.shader_program.getUniformLocation("shadowCubeTextures3") catch null;
 
         var i: u32 = 0;
         while (i < 4) : (i += 1) {
@@ -340,16 +342,21 @@ pub const ShaderInstance = struct {
             }
         }
 
-        self.bone_matrices_location = self.shader_program.getUniformLocation(c"boneMatrices") catch null;
+        self.bone_matrices_location = self.shader_program.getUniformLocation("boneMatrices") catch null;
     }
 
-    pub fn getFileName(buf: []u8, shader_name: []const u8, config: ShaderConfig) ![]u8 {
-        return try std.fmt.bufPrint(buf, "ShaderCache{}{}.{}.{}.{}.{}.{}.{}.{}.{}.{}.{}.bin", files.path_seperator, shader_name, @boolToInt(config.shadow), config.inputs_bitmap, config.max_vertex_lights, config.max_fragment_lights, @boolToInt(config.non_uniform_scale), @boolToInt(config.recieve_shadows), @boolToInt(config.enable_specular_light), @boolToInt(config.enable_point_lights), @boolToInt(config.enable_directional_lights), @boolToInt(config.enable_spot_lights));
+    pub fn getFileName(buf: []u8, shader_name: []const u8, config: ShaderConfig, null_terminate: bool) ![]u8 {
+        var null_terminator: []const u8 =&[0]u8{};
+        const null_terminator_ = &[1]u8{0};
+        if(null_terminate) {
+            null_terminator = null_terminator_;
+        }
+        return try std.fmt.bufPrint(buf, "ShaderCache{}{}.{}.{}.{}.{}.{}.{}.{}.{}.{}.{}.bin{}", .{files.path_seperator, shader_name, @boolToInt(config.shadow), config.inputs_bitmap, config.max_vertex_lights, config.max_fragment_lights, @boolToInt(config.non_uniform_scale), @boolToInt(config.recieve_shadows), @boolToInt(config.enable_specular_light), @boolToInt(config.enable_point_lights), @boolToInt(config.enable_directional_lights), @boolToInt(config.enable_spot_lights), null_terminator});
     }
 
     pub fn loadFromBinaryFile(shader_name: []const u8, config: ShaderConfig, allocator: *std.mem.Allocator) !ShaderInstance {
         var file_name_: [128]u8 = undefined;
-        const file_name = try ShaderInstance.getFileName(file_name_[0..], shader_name, config);
+        const file_name = try ShaderInstance.getFileName(file_name_[0..], shader_name, config, false);
 
         var shader_program = try ShaderProgram.loadFromBinaryFile(file_name, allocator);
 
@@ -493,11 +500,11 @@ fn intToBool(b: var) bool {
 }
 
 test "Standard Shader all combinations" {
-    std.debug.warn("This may take some time...");
+    std.debug.warn("This may take some time...", .{});
 
-    var a = std.heap.direct_allocator;
+    var a = std.heap.page_allocator;
 
-    try window.createWindow(false, 200, 200, c"test", true, 0);
+    try window.createWindow(false, 200, 200, "test", true, 0);
     defer window.closeWindow();
     try renderEngine.init(wgi.getMicroTime(), a);
 
@@ -560,8 +567,8 @@ test "Standard Shader all combinations" {
                         };
 
                         var sh = ShaderInstance.init(false, config, a) catch |e| {
-                            std.debug.warn("bitmap {}, attribs: {} {} {} {} {} {} {} {}\n", inputs_bitmap, inputs[0], inputs[1], inputs[2], inputs[3], inputs[4], inputs[5], inputs[6], inputs[7]);
-                            std.debug.warn("shadow {}, vertex lights {}, fragment lights {}, recieve shadows {}\n", intToBool(shadow), v_lights, f_lights, intToBool(recv_shadows));
+                            std.debug.warn("bitmap {}, attribs: {} {} {} {} {} {} {} {}\n", .{inputs_bitmap, inputs[0], inputs[1], inputs[2], inputs[3], inputs[4], inputs[5], inputs[6], inputs[7]});
+                            std.debug.warn("shadow {}, vertex lights {}, fragment lights {}, recieve shadows {}\n", .{intToBool(shadow), v_lights, f_lights, intToBool(recv_shadows)});
                             return e;
                         };
                         sh.shader_program.free();

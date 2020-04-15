@@ -1,13 +1,12 @@
 const std = @import("std");
-const File = std.fs.File;
 const builtin = @import("builtin");
 
-pub const path_seperator = if (builtin.os == builtin.Os.windows) "\\" else "/";
+pub const path_seperator = if (builtin.os.tag == builtin.Os.Tag.windows) "\\" else "/";
 
 // Loads file into memory (plus a zero byte) and stores file struct in the given pointer
 // The file is _not_ closed
 pub fn loadFileWithNullTerminator2(file_path: []const u8, file: *std.fs.File, allocator: *std.mem.Allocator) ![]u8 {
-    file.* = try File.openRead(file_path);
+    file.* = try std.fs.cwd().openFile(file_path, std.fs.File.OpenFlags{});
     errdefer file.*.close();
 
     var size: usize = try file.*.getEndPos();
@@ -34,7 +33,7 @@ pub fn loadFileWithNullTerminator(file_path: []const u8, allocator: *std.mem.All
 
 // Loads file into memory without modification and closes the file handle.
 pub fn loadFile(file_path: []const u8, allocator: *std.mem.Allocator) ![]align(4) u8 {
-    var in_file = try File.openRead(file_path);
+    var in_file = try std.fs.cwd().openFile(file_path, std.fs.File.OpenFlags{});
     defer in_file.close();
 
     var size: usize = try in_file.getEndPos();
@@ -50,7 +49,7 @@ pub fn loadFile(file_path: []const u8, allocator: *std.mem.Allocator) ![]align(4
 }
 
 pub fn loadFileAligned(alignment: u32, file_path: []const u8, allocator: *std.mem.Allocator) ![]u8 {
-    var in_file = try File.openRead(file_path);
+    var in_file = try std.fs.cwd().openFile(file_path, std.fs.File.OpenFlags{});
     defer in_file.close();
 
     var size: usize = try in_file.getEndPos();

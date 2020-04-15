@@ -1,6 +1,6 @@
 ## OpenGL forward renderer.
 
-Tested with Zig 0.5.0
+Tested with Zig 0.6.0
 
 Demo 1:
 ![Demo 1 Screenshot](https://raw.githubusercontent.com/danielabbott/Game-Engine/master/docs/screenshot.jpg)

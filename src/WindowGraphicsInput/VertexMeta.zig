@@ -190,7 +190,7 @@ pub const VertexMeta = struct {
         }
 
         if (null_vao == null) {
-            null_vao = try VertexMeta.init([_]VertexInput{}, null);
+            null_vao = try VertexMeta.init(&[_]VertexInput{}, null);
         }
         try null_vao.?.bind();
 
@@ -227,13 +227,13 @@ pub const VertexMeta = struct {
 };
 
 test "vao" {
-    try window.createWindow(false, 200, 200, c"test", true, 0);
+    try window.createWindow(false, 200, 200, "test", true, 0);
     defer window.closeWindow();
 
     const inData = [4]f32{ 1, 2, 3, 4 };
     var buffer: buf.Buffer = try buf.Buffer.init();
 
-    try buffer.upload(buf.Buffer.BufferType.VertexData, @sliceToBytes(inData[0..]), false);
+    try buffer.upload(buf.Buffer.BufferType.VertexData, std.mem.sliceAsBytes(inData[0..]), false);
 
     const inputs = [_]VertexMeta.VertexInput{VertexMeta.VertexInput{
         .offset = 0,
