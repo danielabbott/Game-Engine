@@ -14,8 +14,6 @@ const getSettings = @import("RTRenderEngine.zig").getSettings;
 const builtin = @import("builtin");
 const VertexAttributeType = @import("../ModelFiles/ModelFiles.zig").ModelData.VertexAttributeType;
 
-extern fn remove([*c]const u8) c_int;
-
 var standard_shader_vs_src: ?[]u8 = null;
 var standard_shader_fs_src: ?[]u8 = null;
 var standard_shader_common_src: ?[]u8 = null;
@@ -276,10 +274,10 @@ pub const ShaderInstance = struct {
             };
 
             var file_path_: [128]u8 = undefined;
-            const file_path = getFileName(file_path_[0..], program.shader_name, config, true) catch return program;
+            const file_path = getFileName(file_path_[0..], program.shader_name, config) catch return program;
 
             program.shader_program.saveBinary(file_path, allocator) catch {
-                _ = remove(@ptrCast([*c]const u8, file_path));
+                std.fs.cwd().deleteFile(file_path) catch{};
             };
         }
 
@@ -345,18 +343,13 @@ pub const ShaderInstance = struct {
         self.bone_matrices_location = self.shader_program.getUniformLocation("boneMatrices") catch null;
     }
 
-    pub fn getFileName(buf: []u8, shader_name: []const u8, config: ShaderConfig, null_terminate: bool) ![]u8 {
-        var null_terminator: []const u8 = &[0]u8{};
-        const null_terminator_ = &[1]u8{0};
-        if (null_terminate) {
-            null_terminator = null_terminator_;
-        }
-        return try std.fmt.bufPrint(buf, "ShaderCache{}{}.{}.{}.{}.{}.{}.{}.{}.{}.{}.{}.bin{}", .{ files.path_seperator, shader_name, @boolToInt(config.shadow), config.inputs_bitmap, config.max_vertex_lights, config.max_fragment_lights, @boolToInt(config.non_uniform_scale), @boolToInt(config.recieve_shadows), @boolToInt(config.enable_specular_light), @boolToInt(config.enable_point_lights), @boolToInt(config.enable_directional_lights), @boolToInt(config.enable_spot_lights), null_terminator });
+    pub fn getFileName(buf: []u8, shader_name: []const u8, config: ShaderConfig) ![]u8 {
+        return try std.fmt.bufPrint(buf, "ShaderCache{}{}.{}.{}.{}.{}.{}.{}.{}.{}.{}.{}.bin", .{ files.path_seperator, shader_name, @boolToInt(config.shadow), config.inputs_bitmap, config.max_vertex_lights, config.max_fragment_lights, @boolToInt(config.non_uniform_scale), @boolToInt(config.recieve_shadows), @boolToInt(config.enable_specular_light), @boolToInt(config.enable_point_lights), @boolToInt(config.enable_directional_lights), @boolToInt(config.enable_spot_lights)});
     }
 
     pub fn loadFromBinaryFile(shader_name: []const u8, config: ShaderConfig, allocator: *std.mem.Allocator) !ShaderInstance {
         var file_name_: [128]u8 = undefined;
-        const file_name = try ShaderInstance.getFileName(file_name_[0..], shader_name, config, false);
+        const file_name = try ShaderInstance.getFileName(file_name_[0..], shader_name, config);
 
         var shader_program = try ShaderProgram.loadFromBinaryFile(file_name, allocator);
 
