@@ -30,7 +30,7 @@ export fn debug_callback(source: c_uint, type_: c_uint, id: c_uint, severity: c_
 }
 
 fn glfw_error_callback(code: c_int, description: [*c]const u8) callconv(.C) void {
-    warn("GLFW error: {} {}\n", .{code, description[0..mem.len(description)]});
+    warn("GLFW error: {} {}\n", .{ code, description[0..mem.len(description)] });
 }
 
 // If fullscreen is true then width and height are ignored.

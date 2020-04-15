@@ -12,7 +12,7 @@ pub const c = @cImport({
 fn save(path: []const u8, w: u32, h: u32, data: []const u8) !void {
     assert(data.len == w * h * 4);
 
-    var file = try std.fs.cwd().openFile(path, std.fs.File.OpenFlags{.write=true});
+    var file = try std.fs.cwd().openFile(path, std.fs.File.OpenFlags{ .write = true });
     defer file.close();
 
     // Magic bytes

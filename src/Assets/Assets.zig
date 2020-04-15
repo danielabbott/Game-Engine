@@ -160,7 +160,7 @@ pub const Asset = struct {
         if (assets_directory == null) {
             self.data = try loadFile(self.file_path[0..self.file_path_len], allocator_);
         } else {
-            const n = std.fmt.bufPrint(path[0..], "{}{}", .{assets_directory, self.file_path[0..self.file_path_len]}) catch unreachable;
+            const n = std.fmt.bufPrint(path[0..], "{}{}", .{ assets_directory, self.file_path[0..self.file_path_len] }) catch unreachable;
             self.data = try loadFile(n, allocator_);
         }
         self.state = AssetState.Loaded;
@@ -297,7 +297,7 @@ fn fileLoader(allocator: *std.mem.Allocator) void {
             break;
         } else {
             asset_node.?.data.*.load(allocator) catch |e| {
-                std.debug.warn("Asset '{}' load error: {}\n", .{asset_node.?.data.file_path[0..asset_node.?.data.file_path_len], e});
+                std.debug.warn("Asset '{}' load error: {}\n", .{ asset_node.?.data.file_path[0..asset_node.?.data.file_path_len], e });
                 _ = assets_to_load.decr();
                 continue;
             };
@@ -317,7 +317,7 @@ fn assetDecompressor(allocator: *std.mem.Allocator) void {
         } else {
             if (asset.?.data.*.state == Asset.AssetState.Loaded) {
                 asset.?.data.*.decompress() catch |e| {
-                    std.debug.warn("Asset '{}' decompress error: {}\n", .{asset.?.data.file_path[0..asset.?.data.file_path_len], e});
+                    std.debug.warn("Asset '{}' decompress error: {}\n", .{ asset.?.data.file_path[0..asset.?.data.file_path_len], e });
                 };
             }
 

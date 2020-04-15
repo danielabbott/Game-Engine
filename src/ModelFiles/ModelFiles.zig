@@ -114,7 +114,7 @@ pub const ModelData = struct {
         } else {
             var attrib_i: u3 = 0;
             while (attrib_i < 7) : (attrib_i += 1) {
-                const attrib_bit_set = (model_data.attributes_bitmap & (@as(u8,1) << attrib_i)) != 0;
+                const attrib_bit_set = (model_data.attributes_bitmap & (@as(u8, 1) << attrib_i)) != 0;
                 if (attrib_bit_set) {
                     if (attrib_i == @enumToInt(VertexAttributeType.Position)) {
                         if (offset + model_data.vertex_count * 3 > data_u32.len) {

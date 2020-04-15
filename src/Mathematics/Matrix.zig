@@ -518,7 +518,7 @@ pub fn Matrix(comptime T: type, comptime S: u32) type {
             while (i < S) : (i += 1) {
                 var j: u32 = 0;
                 while (j < S) : (j += 1) {
-                    if(self.data[i][j] != b.data[i][j]) {
+                    if (self.data[i][j] != b.data[i][j]) {
                         return false;
                     }
                 }

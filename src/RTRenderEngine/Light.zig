@@ -31,7 +31,6 @@ const loadFileWithNullTerminator = files.loadFileWithNullTerminator;
 const VertexMeta = wgi.VertexMeta;
 const ArrayList = std.ArrayList;
 
-
 pub const Light = struct {
     pub const LightType = enum(u32) {
         Point = 0,
@@ -165,7 +164,6 @@ pub const UniformDataLight = packed struct {
     directionAndAngle: [4]f32,
     intensity: [4]f32,
 };
-
 
 pub fn getLightData(object: *Object, max_vertex_lights: u32, max_fragment_lights: u32, per_obj_light: *([3]f32), vertex_light_indices: *([8]i32), fragment_light_indices: *([4]i32), fragment_light_matrices: *([4]Matrix(f32, 4)), fragment_light_shadow_textures: *([4](?*const FrameBuffer))) void {
     if (lights.*.?.items.len == 0) {

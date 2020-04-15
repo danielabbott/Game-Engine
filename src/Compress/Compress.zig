@@ -9,7 +9,7 @@ pub const c = @cImport({
 });
 
 fn writeCompressed(path: []const u8, data: []const u8, original_size: u32) !void {
-    var file = try std.fs.cwd().openFile(path, std.fs.File.OpenFlags{.write=true});
+    var file = try std.fs.cwd().openFile(path, std.fs.File.OpenFlags{ .write = true });
     defer file.close();
 
     const header = [12]u8{ 0x88, 0x7c, 0x77, 0x6a, 0xee, 0x55, 0xdd, 0xcc, 0x37, 0x9a, 0x8b, 0xef };

@@ -94,8 +94,6 @@ const UniformData = packed struct {
 
 var uniform_data: ?*UniformData = null;
 
-
-
 pub const Object = struct {
     name: [16]u8 = ([1]u8{0}) ** 16,
     name_length: u32 = 0,
@@ -320,7 +318,9 @@ pub const Object = struct {
             var i: u32 = 0;
             while (i < 4) : (i += 1) {
                 if (fragment_light_shadow_textures[i] != null) {
-                    fragment_light_shadow_textures[i].?.bindTextureToUnit(2 + i) catch {assert(false);};
+                    fragment_light_shadow_textures[i].?.bindTextureToUnit(2 + i) catch {
+                        assert(false);
+                    };
                 } else {
                     wgi.Texture2D.unbind(2 + i);
                 }
@@ -353,7 +353,7 @@ fn objectsPrePass(o: *Object, allocator: *Allocator, root_object: *Object) void 
             err = true;
         };
 
-        if(!err) {
+        if (!err) {
             const l = &o.light.?;
             l.lum = 0.2126 * o.light.?.colour[0] + 0.7152 * o.light.?.colour[1] + 0.0722 * o.light.?.colour[2];
             o.calculateTransform();

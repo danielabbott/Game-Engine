@@ -41,19 +41,16 @@ pub fn disableDepthWriting() void {
 // setDepthMode functions enable depth testing
 
 fn setDepthFunc(eql: bool, flip: bool) void {
-    if(eql) {
-        if(flip) {
+    if (eql) {
+        if (flip) {
             c.glDepthFunc(c.GL_LEQUAL);
-        }
-        else  {
+        } else {
             c.glDepthFunc(c.GL_GEQUAL);
         }
-    }
-    else {
-        if(flip) {
+    } else {
+        if (flip) {
             c.glDepthFunc(c.GL_LESS);
-        }
-        else  {
+        } else {
             c.glDepthFunc(c.GL_GREATER);
         }
     }
@@ -83,7 +80,7 @@ pub fn cullFace(mode: CullFaceMode) void {
 }
 pub fn enableAdditiveBlending() void {
     c.glEnable(c.GL_BLEND);
-    c.glBlendFunc(c.GL_ONE,  c.GL_ONE);
+    c.glBlendFunc(c.GL_ONE, c.GL_ONE);
     c.glBlendEquation(c.GL_FUNC_ADD);
 }
 

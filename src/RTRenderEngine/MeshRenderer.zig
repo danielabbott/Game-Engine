@@ -17,7 +17,6 @@ const ReferenceCounter = @import("../RefCount.zig").ReferenceCounter;
 const Asset = @import("../Assets/Assets.zig").Asset;
 const Mesh = @import("Mesh.zig").Mesh;
 
-
 pub const MeshRenderer = struct {
     ref_count: ReferenceCounter = ReferenceCounter{},
 
@@ -98,7 +97,7 @@ pub const MeshRenderer = struct {
         var i: u32 = 0;
         var offset: u32 = 0;
         while (attr < 7) : (attr += 1) {
-            if ((mesh.model.attributes_bitmap & (@as(u8,1) << attr)) != 0) {
+            if ((mesh.model.attributes_bitmap & (@as(u8, 1) << attr)) != 0) {
                 inputs[i].offset = offset;
                 inputs[i].stride = stride;
                 inputs[i].source = &mesh.vertex_data_buffer;
@@ -204,7 +203,9 @@ pub const MeshRenderer = struct {
 
         if (self.mesh.?.model.attributes_bitmap & (1 << @enumToInt(ModelData.VertexAttributeType.BoneIndices)) != 0) {
             if (self.animation_object == null) {
-                Animation.setAnimationIdentityMatrices(shader, allocator) catch {assert(false);};
+                Animation.setAnimationIdentityMatrices(shader, allocator) catch {
+                    assert(false);
+                };
             } else {
                 try self.animation_object.?.setAnimationMatrices(shader, self.mesh.?.model);
             }
@@ -285,7 +286,9 @@ pub const MeshRenderer = struct {
 
         if (self.mesh.?.model.attributes_bitmap & (1 << @enumToInt(ModelData.VertexAttributeType.BoneIndices)) != 0) {
             if (self.animation_object == null) {
-                Animation.setAnimationIdentityMatrices(shader, allocator) catch {assert(false);};
+                Animation.setAnimationIdentityMatrices(shader, allocator) catch {
+                    assert(false);
+                };
             } else {
                 try self.animation_object.?.setAnimationMatrices(shader, self.mesh.?.model);
             }
@@ -303,20 +306,18 @@ pub const MeshRenderer = struct {
 
             var do_draw: bool = false;
 
-            if(first_index_ == first_index + index_count) {
+            if (first_index_ == first_index + index_count) {
                 index_count += index_count_;
-                if(i < self.mesh.?.model.material_count-1 and i < 32-1) {
+                if (i < self.mesh.?.model.material_count - 1 and i < 32 - 1) {
                     continue;
-                }
-                else {
+                } else {
                     do_draw = true;
                 }
-            }
-            else {
+            } else {
                 do_draw = true;
             }
 
-            if(do_draw) {
+            if (do_draw) {
                 if (index_count > 0) {
                     if (self.mesh.?.index_data_buffer == null) {
                         try self.vao.draw(VertexMeta.PrimitiveType.Triangles, first_index, index_count);

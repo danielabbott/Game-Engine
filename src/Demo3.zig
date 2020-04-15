@@ -286,7 +286,7 @@ pub fn main() !void {
 
         rotation += deltaTime;
         m = Matrix(f32, 4).rotateX(0.3);
-        m = m.mul(Matrix(f32, 4).translate(Vector(f32, 3).init([3]f32{0.0,0.0,10.0})));
+        m = m.mul(Matrix(f32, 4).translate(Vector(f32, 3).init([3]f32{ 0.0, 0.0, 10.0 })));
         m = m.mul(Matrix(f32, 4).rotateY(rotation));
         light.setTransform(m);
 

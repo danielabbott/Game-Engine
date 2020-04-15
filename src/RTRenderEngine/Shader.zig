@@ -279,7 +279,7 @@ pub const ShaderInstance = struct {
             const file_path = getFileName(file_path_[0..], program.shader_name, config, true) catch return program;
 
             program.shader_program.saveBinary(file_path, allocator) catch {
-                _ = remove(@ptrCast ([*c]const u8, file_path));
+                _ = remove(@ptrCast([*c]const u8, file_path));
             };
         }
 
@@ -346,12 +346,12 @@ pub const ShaderInstance = struct {
     }
 
     pub fn getFileName(buf: []u8, shader_name: []const u8, config: ShaderConfig, null_terminate: bool) ![]u8 {
-        var null_terminator: []const u8 =&[0]u8{};
+        var null_terminator: []const u8 = &[0]u8{};
         const null_terminator_ = &[1]u8{0};
-        if(null_terminate) {
+        if (null_terminate) {
             null_terminator = null_terminator_;
         }
-        return try std.fmt.bufPrint(buf, "ShaderCache{}{}.{}.{}.{}.{}.{}.{}.{}.{}.{}.{}.bin{}", .{files.path_seperator, shader_name, @boolToInt(config.shadow), config.inputs_bitmap, config.max_vertex_lights, config.max_fragment_lights, @boolToInt(config.non_uniform_scale), @boolToInt(config.recieve_shadows), @boolToInt(config.enable_specular_light), @boolToInt(config.enable_point_lights), @boolToInt(config.enable_directional_lights), @boolToInt(config.enable_spot_lights), null_terminator});
+        return try std.fmt.bufPrint(buf, "ShaderCache{}{}.{}.{}.{}.{}.{}.{}.{}.{}.{}.{}.bin{}", .{ files.path_seperator, shader_name, @boolToInt(config.shadow), config.inputs_bitmap, config.max_vertex_lights, config.max_fragment_lights, @boolToInt(config.non_uniform_scale), @boolToInt(config.recieve_shadows), @boolToInt(config.enable_specular_light), @boolToInt(config.enable_point_lights), @boolToInt(config.enable_directional_lights), @boolToInt(config.enable_spot_lights), null_terminator });
     }
 
     pub fn loadFromBinaryFile(shader_name: []const u8, config: ShaderConfig, allocator: *std.mem.Allocator) !ShaderInstance {
@@ -470,7 +470,6 @@ pub const ShaderInstance = struct {
             try self.shader_program.setUniform1i(self.flat_shading_location.?, @boolToInt(enabled));
         }
     }
-    
 
     // Used during development to detect shader performance problems
     pub fn validate(self: ShaderInstance, allocator: *std.mem.Allocator) void {
@@ -567,8 +566,8 @@ test "Standard Shader all combinations" {
                         };
 
                         var sh = ShaderInstance.init(false, config, a) catch |e| {
-                            std.debug.warn("bitmap {}, attribs: {} {} {} {} {} {} {} {}\n", .{inputs_bitmap, inputs[0], inputs[1], inputs[2], inputs[3], inputs[4], inputs[5], inputs[6], inputs[7]});
-                            std.debug.warn("shadow {}, vertex lights {}, fragment lights {}, recieve shadows {}\n", .{intToBool(shadow), v_lights, f_lights, intToBool(recv_shadows)});
+                            std.debug.warn("bitmap {}, attribs: {} {} {} {} {} {} {} {}\n", .{ inputs_bitmap, inputs[0], inputs[1], inputs[2], inputs[3], inputs[4], inputs[5], inputs[6], inputs[7] });
+                            std.debug.warn("shadow {}, vertex lights {}, fragment lights {}, recieve shadows {}\n", .{ intToBool(shadow), v_lights, f_lights, intToBool(recv_shadows) });
                             return e;
                         };
                         sh.shader_program.free();

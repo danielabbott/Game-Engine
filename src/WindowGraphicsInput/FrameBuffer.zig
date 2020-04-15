@@ -14,7 +14,7 @@ pub const FrameBuffer = struct {
 
     id: u32,
 
-    textures: [8]?*Texture2D = [_]?*Texture2D {null}**8,
+    textures: [8]?*Texture2D = [_]?*Texture2D{null} ** 8,
     texture_count: u32 = 0,
     depth_texture: ?*Texture2D,
 
@@ -32,11 +32,11 @@ pub const FrameBuffer = struct {
     allocator: ?*std.mem.Allocator = null,
 
     pub fn init3(textures: []*Texture2D, depth_texture: ?*Texture2D) !FrameBuffer {
-        if(textures.len > 0) {
+        if (textures.len > 0) {
             const w = textures[0].width;
             const h = textures[0].height;
-            for(textures) |t| {
-                if(t.width != w or t.height != h) {
+            for (textures) |t| {
+                if (t.width != w or t.height != h) {
                     return error.InconsistentTextureDimensions;
                 }
 
@@ -45,7 +45,7 @@ pub const FrameBuffer = struct {
             }
         }
 
-        if(depth_texture != null) {
+        if (depth_texture != null) {
             depth_texture.?.ref_count.inc();
             errdefer depth_texture.?.ref_count.dec();
         }
@@ -66,19 +66,16 @@ pub const FrameBuffer = struct {
 
         var depth_type: DepthType = DepthType.None;
 
-        if(depth_texture != null) {
+        if (depth_texture != null) {
             const t = depth_texture.?.imageType;
 
-            if(t == ImageType.Depth16) {
+            if (t == ImageType.Depth16) {
                 depth_type = DepthType.I16;
-            }
-            else if(t == ImageType.Depth24) {
+            } else if (t == ImageType.Depth24) {
                 depth_type = DepthType.I24;
-            }
-            else if(t == ImageType.Depth32) {
+            } else if (t == ImageType.Depth32) {
                 depth_type = DepthType.I32;
-            }
-            else if(t == ImageType.Depth32F) {
+            } else if (t == ImageType.Depth32F) {
                 depth_type = DepthType.F32;
             }
         }
@@ -93,8 +90,6 @@ pub const FrameBuffer = struct {
 
         // Configure framebuffer
 
-
-        
         if (depth_type != DepthType.None) {
             c.glFramebufferTexture2D(c.GL_FRAMEBUFFER, c.GL_DEPTH_ATTACHMENT, c.GL_TEXTURE_2D, depth_texture.?.id, 0);
         }
@@ -121,31 +116,31 @@ pub const FrameBuffer = struct {
     }
 
     pub fn addMoreTextures(self: *FrameBuffer, textures: []*Texture2D) !void {
-        if(textures.len == 0) {
+        if (textures.len == 0) {
             return;
         }
 
-        var drawBuffers: [8]c_uint = [_]c_uint{c.GL_NONE}**8;
+        var drawBuffers: [8]c_uint = [_]c_uint{c.GL_NONE} ** 8;
 
         var i: u32 = 0;
-        for(self.textures) |t| {
-            if(t == null) {
+        for (self.textures) |t| {
+            if (t == null) {
                 break;
             }
             drawBuffers[i] = c.GL_COLOR_ATTACHMENT0 + @intCast(c_uint, i);
             i += 1;
         }
 
-        if(i + textures.len > 8) {
+        if (i + textures.len > 8) {
             assert(false);
             return error.TooManyTextures;
         }
-        
-        for(textures) |t| {
+
+        for (textures) |t| {
             self.textures[i] = t;
             drawBuffers[i] = c.GL_COLOR_ATTACHMENT0 + @intCast(c_uint, i);
             self.texture_count += 1;
-            c.glFramebufferTexture2D(c.GL_FRAMEBUFFER, c.GL_COLOR_ATTACHMENT0+@intCast(c_uint, i), c.GL_TEXTURE_2D, t.id, 0);
+            c.glFramebufferTexture2D(c.GL_FRAMEBUFFER, c.GL_COLOR_ATTACHMENT0 + @intCast(c_uint, i), c.GL_TEXTURE_2D, t.id, 0);
             t.ref_count.inc();
             i += 1;
         }
@@ -154,16 +149,15 @@ pub const FrameBuffer = struct {
     }
 
     pub fn init2(texture: ?*Texture2D, depth_texture: ?*Texture2D) !FrameBuffer {
-        if(texture == null and depth_texture == null) {
+        if (texture == null and depth_texture == null) {
             return error.ParameterError;
         }
 
-        if(texture != null) {
+        if (texture != null) {
             var p = [1]*Texture2D{texture.?};
             return try init3(p[0..], depth_texture);
-        }
-        else {
-             return try init3(&[0]*Texture2D{}, depth_texture);
+        } else {
+            return try init3(&[0]*Texture2D{}, depth_texture);
         }
     }
 
@@ -199,13 +193,12 @@ pub const FrameBuffer = struct {
                 try depth_texture.?.upload(width, height, ImageType.Depth16, null);
             } else if (depth_type == DepthType.I24) {
                 try depth_texture.?.upload(width, height, ImageType.Depth24, null);
-            }  else if (depth_type == DepthType.I32) {
+            } else if (depth_type == DepthType.I32) {
                 try depth_texture.?.upload(width, height, ImageType.Depth32, null);
             } else if (depth_type == DepthType.F32) {
                 try depth_texture.?.upload(width, height, ImageType.Depth32F, null);
             }
         }
-
 
         var fb = try init2(texture, depth_texture);
         fb.allocator = allocator;
@@ -214,8 +207,8 @@ pub const FrameBuffer = struct {
 
     pub fn setTextureFiltering(self: *FrameBuffer, min_blur: bool, mag_blur: bool) !void {
         try self.bindTexture();
-        for(self.textures) |*t| {
-            if(t.* == null) {
+        for (self.textures) |*t| {
+            if (t.* == null) {
                 break;
             }
             if (min_blur) {
@@ -264,8 +257,8 @@ pub const FrameBuffer = struct {
         }
         self.ref_count.deinit();
 
-        for(self.textures) |t| {
-            if(t != null) {
+        for (self.textures) |t| {
+            if (t != null) {
                 t.?.ref_count.dec();
             }
         }
@@ -275,13 +268,13 @@ pub const FrameBuffer = struct {
 
         c.glDeleteFramebuffers(1, @ptrCast([*c]const c_uint, &self.id));
 
-        if(self.allocator != null) {
-            for(self.textures) |t| {
-                if(t != null) {
+        if (self.allocator != null) {
+            for (self.textures) |t| {
+                if (t != null) {
                     self.allocator.?.destroy(t.?);
                 }
             }
-            if(self.depth_texture != null) {
+            if (self.depth_texture != null) {
                 self.allocator.?.destroy(self.depth_texture.?);
             }
         }
@@ -296,7 +289,7 @@ pub const FrameBuffer = struct {
     }
 
     fn setTextureSizes(self: *FrameBuffer, new_width: u32, new_height: u32) !void {
-        for(self.textures) |t| {
+        for (self.textures) |t| {
             if (t != null) {
                 try t.?.upload(new_width, new_height, t.?.imageType, null);
             }
@@ -307,7 +300,7 @@ pub const FrameBuffer = struct {
                 try self.depth_texture.?.upload(new_width, new_height, ImageType.Depth16, null);
             } else if (self.depth_type == DepthType.I24) {
                 try self.depth_texture.?.upload(new_width, new_height, ImageType.Depth24, null);
-            }  else if (self.depth_type == DepthType.I32) {
+            } else if (self.depth_type == DepthType.I32) {
                 try self.depth_texture.?.upload(new_width, new_height, ImageType.Depth32, null);
             } else if (self.depth_type == DepthType.F32) {
                 try self.depth_texture.?.upload(new_width, new_height, ImageType.Depth32F, null);

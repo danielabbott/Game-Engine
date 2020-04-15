@@ -487,7 +487,7 @@ pub const ShaderProgram = struct {
         var binary_format: [1]u32 = undefined;
         try self.getBinary(&data, &binary_format[0], allocator);
 
-        var file = try std.fs.cwd().openFile(file_path, std.fs.File.OpenFlags{.write=true});
+        var file = try std.fs.cwd().openFile(file_path, std.fs.File.OpenFlags{ .write = true });
         defer file.close();
 
         _ = try file.write(std.mem.sliceAsBytes(binary_format[0..]));

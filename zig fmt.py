@@ -16,7 +16,7 @@ def format(dirName):
                 print(path)
 
                 # uncomment to run zig fmt
-                #subprocess.run(["zig", "fmt", path])
+                subprocess.run(["zig", "fmt", path])
 
                 
 
