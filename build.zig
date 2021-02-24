@@ -30,21 +30,18 @@ fn addSettings(x: *LibExeObjStep) void {
     x.addIncludeDir("deps/glad");
     x.addIncludeDir("deps/stb_image");
     x.addIncludeDir("deps/glfw/include");
-    x.addObjectFile("deps/glad/glad.o");
+    x.addCSourceFile("deps/glad/glad.c", &[_][]const u8{"-I."});
+    x.addCSourceFile("deps/stb_image/stb_image.c", &[_][]const u8{"-I."});
     x.addIncludeDir("deps/zstd/lib");
 
     if (builtin.os.tag == builtin.Os.Tag.windows) {
         x.addLibPath("deps/glfw/src/Release");
-        x.addLibPath("deps/stb_image/x64/Release");
         x.addLibPath("deps\\zstd\\build\\VS2010\\bin\\x64_Release");
         x.linkSystemLibrary("libzstd_static");
-        x.linkSystemLibrary("stb_image");
     } else {
         x.addLibPath("deps/glfw/src");
-        x.addLibPath("deps/stb_image");
         x.addLibPath("deps/zstd/lib");
         x.linkSystemLibrary("zstd");
-        x.addObjectFile("deps/stb_image/stb_image.o");
         x.linkSystemLibrary("rt");
         x.linkSystemLibrary("m");
         x.linkSystemLibrary("dl");

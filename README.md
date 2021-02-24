@@ -30,13 +30,12 @@ Demo 1:
 1. Run compile_deps.bat
 	* Modify the file if needed e.g. to change the visual studio version
 2. If compiling GLFW, open deps\glfw\GLFW.sln and build the GLFW project in Release x64. 
-3. If compiling stb_image, open deps\stb_image\stb_image.vcxproj and compile in Release x64.
-4. If compiling ZSTD, open deps\zstd\build\VS2010\zstd.sln and compile libzstd in Release x64.
-5. Run compile_and_run.bat
+3. If compiling ZSTD, open deps\zstd\build\VS2010\zstd.sln and compile libzstd in Release x64.
+4. Run compile_and_run.bat
 
 Output is in zig-cache/bin. The batch script ^ will run the example program automatically.
 
-### Compile Instructions (Linux)
+### Compile Instructions (Linux, untested)
 
 1. Run compile_deps.sh (might need to run sudo chmod +x ./compile_deps.sh)
 	* Change 'make -j3' to 'make -j4' etc. wherever it appears in the script if your computer has more than 2 CPU cores.

@@ -30,3 +30,4 @@ zig-cache/
 *.so.*
 !deps/zstd/build/VS2010/zstd.sln
 !deps/zstd/build/VS2010/libzstd/libzstd.vcxproj
+*.recipe
